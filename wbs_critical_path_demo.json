@@ -1,0 +1,80 @@
+{
+  "projects": [
+    {
+      "name": "クリティカルパス動作確認用サンプル",
+      "milestones": [
+        { "date": "2026-09-12", "label": "リリース", "color": "#ef4444" }
+      ],
+      "tasks": [
+        {
+          "id": "1",
+          "name": "新機能開発",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "要件定義",
+              "qty": 1, "hours": 56, "assignee": "ぴぐお",
+              "plan": { "start": "2026-08-01", "end": "2026-08-07" },
+              "actual": { "start": "2026-08-01", "end": "2026-08-07" },
+              "note": "全ての後続タスクが待つ起点タスク"
+            },
+            {
+              "id": "1.2",
+              "name": "UI設計（短い枝）",
+              "qty": 1, "hours": 40, "assignee": "田中",
+              "plan": { "start": "2026-08-08", "end": "2026-08-12" },
+              "actual": { "start": null, "end": null },
+              "note": "こちらの枝は途中で待ち時間（スラック）が生まれるため非クリティカル＝構造タブでグレー表示になるはず",
+              "_deps": ["1.1"]
+            },
+            {
+              "id": "1.3",
+              "name": "バックエンド設計（長い枝）",
+              "qty": 1, "hours": 112, "assignee": "佐藤",
+              "plan": { "start": "2026-08-08", "end": "2026-08-21" },
+              "actual": { "start": "2026-08-08", "end": null },
+              "note": "こちらが全体の所要日数を決める側＝構造タブでオレンジ（クリティカルパス）になるはず",
+              "_deps": ["1.1"]
+            },
+            {
+              "id": "1.4",
+              "name": "フロントエンド実装",
+              "qty": 1, "hours": 64, "assignee": "田中",
+              "plan": { "start": "2026-08-13", "end": "2026-08-20" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["1.2"]
+            },
+            {
+              "id": "1.5",
+              "name": "バックエンド実装",
+              "qty": 1, "hours": 112, "assignee": "佐藤",
+              "plan": { "start": "2026-08-22", "end": "2026-09-04" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["1.3"]
+            },
+            {
+              "id": "1.6",
+              "name": "結合テスト",
+              "qty": 1, "hours": 48, "assignee": "鈴木",
+              "plan": { "start": "2026-09-05", "end": "2026-09-10" },
+              "actual": { "start": null, "end": null },
+              "note": "フロント・バックエンド両方の完了を待つ合流点",
+              "_deps": ["1.4", "1.5"]
+            },
+            {
+              "id": "1.7",
+              "name": "リリース準備",
+              "qty": 1, "hours": 16, "assignee": "ぴぐお",
+              "plan": { "start": "2026-09-11", "end": "2026-09-12" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["1.6"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

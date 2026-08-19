@@ -111,6 +111,11 @@ In addition to text / AI editing, `wbs.json` can be **edited directly on screen*
 - **Exception: `_progress` (0/10/…/100) is read by the viewer** as the progress value (EV), alongside `_progressAt` (assessment time, ISO) and
   `_progressBy` (`"manual"` or a model name). Asking an AI: "assess task X's progress to the nearest 10% from the deliverable and requirements"
   → it writes `_progress`/`_progressAt`/`_progressBy` on the leaf. If unset, progress falls back to time-based (backward compatible).
+- **Exception: `_deps` (an array of predecessor task ids) is also read by the viewer** as the dependency graph (#66). `"_deps": ["1.2","1.3"]`
+  means this task waits on 1.2 and 1.3 to finish. **Leaves only** (ignored if written on an aggregate node). The viewer deterministically
+  computes the critical path (topological sort + longest path) from `_deps` and highlights it in the "Structure" tab (no arrows/lines drawn —
+  minimal scope). References to non-existent ids, self-references, and cyclic dependencies are ignored and excluded from the graph (see the
+  anomaly-handling table). If unset (true for most existing data), the dependency graph is empty and nothing is marked critical.
 - **`_planLog` (schedule-change history, #96)**: a `_` key that records **as fact** why a successor was pushed back by a delay (same idea as `_progress`/`_ai` — not derived; the viewer preserves it by default).
   Append one entry per reschedule (append-only). **The first entry's `from` is effectively the baseline (the original plan)**:
   ```json
@@ -168,6 +173,7 @@ Append to the project's `milestones`:
 - "**Add** a testing phase" → append a summary node + leaves
 - "**Archive** everything completed before May" → archiving procedure above (backup + delete)
 - "**Assess** the progress of task X" → see "AI progress assessment" below (deliverable + requirements → nearest 10% into `_progress`)
+- "**Infer** task X's dependencies" → see "⑦ AI dependency-inference workflow" below (infer predecessor tasks into `_deps`)
 
 ### ⑥ AI progress-assessment workflow (this tool's core = AI-native)
 Hand the fuzzy "roughly what %" to an AI. The steps are deterministic:
@@ -177,6 +183,17 @@ Hand the fuzzy "roughly what %" to an AI. The steps are deterministic:
 4. **Done is separate**: when actually finished, set `actual.end` (= 100%) rather than `_progress`. `_progress` is only an in-progress earned-value estimate.
 - Example: "Assess #63's progress from the deliverable (impl/tests/docs) and acceptance criteria, to the nearest 10%."
 - Note: an assessment is a **recorded fact** (a person/AI judgment at that moment); it is not recomputed, hence a `_`-key — consistent with "no derived values in data."
+
+### ⑦ AI dependency-inference workflow (inferring `_deps`, #66)
+Hand the fuzzy "what does this task wait on" to an AI. The steps are deterministic:
+1. **Read the target task's description** (`name`/`note`, related deliverables/issue text).
+2. **Identify candidate predecessors**: work out which other not-yet-done/planned tasks' deliverables this task needs before it can start (scan other leaves in the same project first).
+3. **Check it won't create a cycle**: from each candidate predecessor's own dependency chain, confirm the target task isn't already in it (i.e. no reverse dependency exists). Drop any candidate that would create one.
+4. Write `_deps` (an array of predecessor task ids) on the leaf. Don't write ids that don't exist or self-references (the viewer ignores them anyway, but don't write them in the first place).
+5. Check the "Structure" tab to confirm the critical path (orange) reflects it as expected.
+- Example: "Infer task X's predecessors from its description and put them in `_deps`. Check it doesn't create a cycle."
+- Note: `_deps`, like `_progress`, is a **recorded fact/judgment** (not recomputed — consistent with the `_`-key convention). The viewer only
+  **deterministically computes the critical path** from `_deps`; it does not validate whether the dependency itself makes sense (a cycle is simply ignored by the graph).
 
 ## Computation (deterministic, in the HTML)
 - **Effort (person-days) = `qty × hours ÷ 8`**. Parent = sum of descendant leaves.
@@ -262,6 +279,8 @@ Avoid the following when entering data (nothing crashes, but display degrades).
 | Out-of-range / colorless / invalid-date milestones | **Not drawn** (ignored) |
 | Milestone `color` not `#hex` | **Ignored, default color** (prevents attribute injection) |
 | **Duplicate ids** within one project | Collapse keys collide (same ids open/close together) |
+| `_deps` non-array / entries referencing a non-existent id or self | **Ignored** (only invalid deps are dropped; valid ones still build the graph. No crash) |
+| `_deps` with a **cyclic dependency** | Tasks in the cycle (and their successors) are excluded from critical-path ranking. Rendering proceeds normally; no crash |
 | `projects: []` / `tasks: []` (empty) | Empty view (no crash) |
 | Top level `null` / number / non-object | Empty view (no crash) |
 | Invalid JSON (D&D / file picker / reload) | Alert shown (no silent failure) |
