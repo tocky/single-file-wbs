@@ -1,0 +1,62 @@
+{
+  "projects": [
+    {
+      "name": "プロジェクトA",
+      "milestones": [],
+      "tasks": [
+        {
+          "id": "1",
+          "name": "工程A",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "A-要件定義",
+              "qty": 1, "hours": 40, "assignee": "田中",
+              "plan": { "start": "2026-06-01", "end": "2026-06-05" },
+              "actual": { "start": null, "end": null },
+              "note": ""
+            },
+            {
+              "id": "1.2",
+              "name": "A-実装（1.1に依存・同一プロジェクト内）",
+              "qty": 1, "hours": 40, "assignee": "佐藤",
+              "plan": { "start": "2026-06-06", "end": "2026-06-12" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["1.1"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "プロジェクトB",
+      "milestones": [],
+      "tasks": [
+        {
+          "id": "1",
+          "name": "工程B",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "B-要件定義（プロジェクトAの1.1とidが衝突するが無関係）",
+              "qty": 1, "hours": 8, "assignee": "鈴木",
+              "plan": { "start": "2026-07-01", "end": "2026-07-02" },
+              "actual": { "start": null, "end": null },
+              "note": ""
+            },
+            {
+              "id": "1.2",
+              "name": "B-実装（1.1に依存・こちらも同一idだが別プロジェクトの1.1を指してはいけない）",
+              "qty": 1, "hours": 8, "assignee": "鈴木",
+              "plan": { "start": "2026-07-03", "end": "2026-07-04" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["1.1"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
