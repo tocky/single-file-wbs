@@ -230,9 +230,9 @@
   /* クリックで依存の連鎖をハイライト（矢印描画の軽量代替・#66）。新色は増やさず既存--actual(青)を流用し、方向は実線/破線という別チャネルで区別（CUD） */
   .bar.struct[data-id]{cursor:pointer}
   .bar.struct.faded{opacity:.3}
-  .bar.struct.sel{outline:2px solid #1e293b;outline-offset:1px}
-  .bar.struct.pred{outline:2px solid var(--actual)}     /* 先行（これの完了を待っている） */
-  .bar.struct.succ{outline:2px dashed var(--actual)}    /* 後続（これの完了を待つ側） */
+  .bar.struct.sel{outline:2px solid #333;outline-offset:1px}
+  .bar.struct.pred{outline:2px solid var(--actual)}     /* 先行＝選択タスクが依存する側（選択タスクはこれの完了を待つ） */
+  .bar.struct.succ{outline:2px dashed var(--actual)}    /* 後続＝選択タスクに依存する側（これが選択タスクの完了を待つ） */
   #cpinfo{margin-left:auto;margin-right:12px;align-self:center;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;cursor:help}  /* 幅が足りない時は省略記号（詳細はtitle）。タブ/軸スケールは潰さない */
   /* リスケ履歴(#96)＝直近の修正1本のトレイル。下レーン=開始の変化・上レーン=終了の変化（出る場所で修正種別が読める） */
   .rs-seg{position:absolute;top:26px;border-top:2px dotted #9aa2ad;z-index:1}
@@ -693,6 +693,7 @@
     const walk=(id,map,set)=>{(map.get(id)||[]).forEach(x=>{if(!set.has(x)){set.add(x);walk(x,map,set);}});};
     walk(structSelId,structPreds,predSet);
     walk(structSelId,structSuccs,succSet);
+    predSet.delete(structSelId); succSet.delete(structSelId);  // 循環依存でstructSelId自身が経路に戻ってきても選択(sel)表示を上書きしない
     bars.forEach(b=>{
       const id=b.getAttribute("data-id");
       b.classList.toggle("sel",id===structSelId);

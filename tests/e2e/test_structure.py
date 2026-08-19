@@ -64,6 +64,12 @@ with sync_playwright() as p:
     nan_check = pg.evaluate("""()=>document.getElementById('cpinfo').textContent.includes('NaN')""")
     check(not nan_check, "#cpinfoにNaNが出ない")
 
+    # --- 循環依存のタスクをクリックしても、自分自身がpred/succにならないこと（Copilotレビュー指摘の回帰確認） ---
+    pg.click("#strows .bar.struct[data-id='2.1']"); pg.wait_for_timeout(100)
+    cls_cyc = pg.evaluate("""()=>[...document.querySelector('#strows .bar.struct[data-id="2.1"]').classList].filter(c=>['sel','pred','succ','faded'].includes(c))""")
+    check(cls_cyc == ["sel"], f"循環依存(2.1→2.3→2.2→2.1)を選択しても自分自身にpred/succは付かない -> {cls_cyc}")
+    pg.click("#strows .bar.struct[data-id='2.1']"); pg.wait_for_timeout(100)  # 選択解除して次のケースへ
+
     # --- クリックで依存の連鎖をハイライト（矢印描画の軽量代替） ---
     errors.clear()
     DATA_CHAIN = load_test_json("正常_クリティカルパス.json")
