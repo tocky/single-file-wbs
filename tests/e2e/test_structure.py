@@ -64,6 +64,71 @@ with sync_playwright() as p:
     nan_check = pg.evaluate("""()=>document.getElementById('cpinfo').textContent.includes('NaN')""")
     check(not nan_check, "#cpinfoにNaNが出ない")
 
+    # --- 循環依存のタスクをクリックしても、自分自身がpred/succにならないこと（Copilotレビュー指摘の回帰確認） ---
+    pg.click("#strows .bar.struct[data-id='2.1']"); pg.wait_for_timeout(100)
+    cls_cyc = pg.evaluate("""()=>[...document.querySelector('#strows .bar.struct[data-id="2.1"]').classList].filter(c=>['sel','pred','succ','faded'].includes(c))""")
+    check(cls_cyc == ["sel"], f"循環依存(2.1→2.3→2.2→2.1)を選択しても自分自身にpred/succは付かない -> {cls_cyc}")
+    pg.click("#strows .bar.struct[data-id='2.1']"); pg.wait_for_timeout(100)  # 選択解除して次のケースへ
+
+    # --- クリックで依存の連鎖をハイライト（矢印描画の軽量代替） ---
+    errors.clear()
+    DATA_CHAIN = load_test_json("正常_クリティカルパス.json")
+    pg.evaluate("d=>window.renderData(d)", DATA_CHAIN); pg.wait_for_timeout(150)
+    pg.click(".rtab[data-view='structure']"); pg.wait_for_timeout(150)
+
+    def bar_classes(pg):
+        return pg.evaluate("""()=>Object.fromEntries([...document.querySelectorAll('#strows .bar.struct[data-id]')]
+          .map(b=>[b.getAttribute('data-id'), [...b.classList].filter(c=>['sel','pred','succ','faded'].includes(c))]))""")
+
+    check(pg.locator("#strows .bar.struct[data-id='1.3']").count() == 1, "リーフのバーにdata-idが付く")
+
+    tip13 = pg.get_attribute("#strows .bar.struct[data-id='1.3']", "title")
+    check("1.1" in tip13 and "1.4" in tip13, f"ツールチップに先行/後続idが出る -> {tip13!r}")
+
+    pg.click("#strows .bar.struct[data-id='1.3']"); pg.wait_for_timeout(100)
+    cls = bar_classes(pg)
+    check(cls["1.3"] == ["sel"], f"クリックしたタスク自身はsel -> {cls['1.3']}")
+    check(cls["1.1"] == ["pred"], f"直接の先行はpred -> {cls['1.1']}")
+    check(cls["1.4"] == ["succ"], f"直接の後続はsucc -> {cls['1.4']}")
+    check(cls["1.2"] == ["faded"], f"依存関係の無いタスク(兄弟)はfaded -> {cls['1.2']}")
+    check(len(errors) == 0, f"クリック後もJSエラー無し -> {errors}")
+
+    pg.click("#strows .bar.struct[data-id='1.3']"); pg.wait_for_timeout(100)
+    cls2 = bar_classes(pg)
+    check(all(v == [] for v in cls2.values()), f"同じバーの再クリックで全解除される -> {cls2}")
+
+    pg.click("#strows .bar.struct[data-id='1.4']"); pg.wait_for_timeout(100)
+    cls3 = bar_classes(pg)
+    check(cls3["1.4"] == ["sel"] and set(cls3["1.1"]+cls3["1.2"]+cls3["1.3"]) == {"pred"},
+          f"別のタスクをクリックすると選択が切り替わる（1.4は1.1/1.2/1.3すべてに間接的に依存） -> {cls3}")
+
+    # 新規ファイル読込ではない再描画（状態フィルタのトグル）を挟んでも選択状態が保たれ、新しいDOMへ再適用されること
+    pg.click("#stateFilter .sf-btn[data-state='todo']"); pg.wait_for_timeout(150)  # render(lastData)を誘発（isNewではない）
+    pg.click("#stateFilter .sf-btn[data-state='todo']"); pg.wait_for_timeout(150)  # 元に戻す
+    cls4 = bar_classes(pg)
+    check(cls4["1.4"] == ["sel"], f"データ再読込を伴わない再描画では選択状態が保たれる -> {cls4['1.4']}")
+
+    # --- Copilot相当のセルフレビューで見つかった2件の回帰確認 ---
+    # 1) 他タブ（時間ビュー）でのクリックが構造タブの選択状態を巻き込んで消さないこと
+    pg.click("#strows .bar.struct[data-id='1.3']"); pg.wait_for_timeout(100)  # 選択し直す
+    pg.click(".rtab[data-view='time']"); pg.wait_for_timeout(150)
+    pg.click("#grows"); pg.wait_for_timeout(150)                              # 時間ビューのガント領域をクリック
+    pg.click(".rtab[data-view='structure']"); pg.wait_for_timeout(150)
+    cls5 = bar_classes(pg)
+    check(cls5["1.3"] == ["sel"], f"他タブでのクリックを挟んでも構造タブの選択状態は保たれる -> {cls5}")
+
+    # 2) フィルタで非表示になった先行/後続タスクのidがツールチップに残らないこと
+    pg.click(".asg-dd > summary"); pg.wait_for_timeout(150)                   # 担当フィルタを開く（1.1=田中/1.4=田中/1.3=鈴木）
+    pg.click(".asg-cb[data-asg='田中']"); pg.wait_for_timeout(200)             # 田中(=1.1と1.4)を非表示に
+    check(pg.locator("#strows .bar.struct[data-id='1.1']").count() == 0, "担当フィルタで1.1のバーが非表示になる")
+    tip13_filtered = pg.get_attribute("#strows .bar.struct[data-id='1.3']", "title") or ""
+    check("1.1" not in tip13_filtered and "1.4" not in tip13_filtered,
+          f"非表示の先行/後続はツールチップから除外される -> {tip13_filtered!r}")
+    pg.click(".asg-cb[data-asg='田中']"); pg.wait_for_timeout(200)             # 元に戻す
+    tip13_restored = pg.get_attribute("#strows .bar.struct[data-id='1.3']", "title") or ""
+    check("1.1" in tip13_restored and "1.4" in tip13_restored,
+          f"フィルタを解除するとツールチップも復元される -> {tip13_restored!r}")
+
     check(len(errors) == 0, f"一連の操作でJSエラー無し -> {errors}")
     b.close()
 
