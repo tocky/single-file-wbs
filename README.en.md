@@ -53,6 +53,8 @@ The latest version's main additions are the **structure tab** (dependency and cr
 - References to a nonexistent id or a cyclic dependency are simply **ignored, never crash** (broken-input tolerance is a policy across the whole tool)
 - Ask the AI, "infer task X's dependencies," and it infers predecessors from the description and deliverables and writes them into `_deps`
 
+![structure view](docs/screenshot-structure.en.png)
+
 ### Narrow down
 
 - **Filter bar** — above the left table, four axes sit side by side: **state (to do / in progress / done), delayed-only, owner (multi-select), and period (today / this week / all)**. Values inside one axis combine with OR; axes combine with AND, so you can stack them freely — e.g. "in progress AND delayed AND assigned to me." It is **display-only**: neither `wbs.json` nor the time axis changes. Hiding a row is a blindfold, not a delete
