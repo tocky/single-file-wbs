@@ -327,7 +327,7 @@
 - 人間の目が要る（**保存パスの実機スモーク**・見た目・UX）は**人間確認**。
 
 ### このリポの設定
-- **repo**：`piguo45/single-file-wbs`／**roadmap**：`wbs_roadmap.json`。
+- **repo**：`tocky/single-file-wbs`（issue・PR の作業対象。フォーク元 `piguo45/single-file-wbs` ではない）／**roadmap**：`wbs_roadmap.json`。
 - **issueタイトル**：`【表示】【編集】` 等のカテゴリ接頭辞。
 - **version**：後方互換の機能追加＝MINOR／バグ修正＝PATCH／破壊的・正体変更＝MAJOR（一度だけ）。
 
@@ -335,3 +335,4 @@
 - **push 前 PII grep**（ユーザー名・メール・絶対パス・実名・社内名）／コミットメール＝**GitHub noreply**／`git push --force` 禁止。
 - サンプル/スクショは**架空名のみ**。`.env` 等の秘密は AI が直接編集せずユーザーへ依頼。
 - **「直したはず」で報告/close しない**（必ず自動検証を通す）。出力は簡潔に＋**判断の理由を1行残す**。
+- **フォーク元 `piguo45/single-file-wbs` の issue を直接操作しない**（作成・編集・close・コメント禁止・絶対）。参照（閲覧）・`#N` でのリンク言及は可。issue の起票・close・コメントは必ず `tocky/single-file-wbs` 側で行う。
