@@ -227,6 +227,12 @@
   .bar.struct.crit{background:#e69f00}
   .bar.struct.dim{background:#d7dbe0}
   .grow.parent .bar.struct.thin,.grow.prow .bar.struct.thin{top:11px;height:8px}  /* 親/プロジェクト行=細いサマリー（形で葉と区別・色は増やさない・既存の.grow.parent .bar.planと同じ考え方） */
+  /* クリックで依存の連鎖をハイライト（矢印描画の軽量代替・#66）。新色は増やさず既存--actual(青)を流用し、方向は実線/破線という別チャネルで区別（CUD） */
+  .bar.struct[data-id]{cursor:pointer}
+  .bar.struct.faded{opacity:.3}
+  .bar.struct.sel{outline:2px solid #1e293b;outline-offset:1px}
+  .bar.struct.pred{outline:2px solid var(--actual)}     /* 先行（これの完了を待っている） */
+  .bar.struct.succ{outline:2px dashed var(--actual)}    /* 後続（これの完了を待つ側） */
   #cpinfo{margin-left:auto;margin-right:12px;align-self:center;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;cursor:help}  /* 幅が足りない時は省略記号（詳細はtitle）。タブ/軸スケールは潰さない */
   /* リスケ履歴(#96)＝直近の修正1本のトレイル。下レーン=開始の変化・上レーン=終了の変化（出る場所で修正種別が読める） */
   .rs-seg{position:absolute;top:26px;border-top:2px dotted #9aa2ad;z-index:1}
@@ -356,6 +362,7 @@
       calTip:"カレンダーから選択",addMs:"＋MS",addMsTip:"マイルストーンを追加",msLabelPh:"マイルストーン名",milestone:"マイルストーン",
       startDelayTip:n=>`着手遅れ +${n}日`, endDelayTip:(n,act)=>`終了遅延 +${n}日${act?"・進行中":""}`,
       structCritTip:"クリティカルパス上のタスク（この経路が延びると全体が延びる）",
+      structPredTip:ids=>`先行: ${ids}`, structSuccTip:ids=>`後続: ${ids}`,
       structInfo:(len,n)=>n?`CP: ${len}日/${n}件`:"CP: 未設定",
       structInfoTip:(len,n)=>n?`クリティカルパス：${len}日・${n}件（このタスク群が延びると全体が延びる）`:"クリティカルパス：依存関係(_deps)が未設定のため対象なし",
       doneTip:"完了/未完了を切替（チェックで実績終了＝今日。未着手なら着手も今日）",
@@ -404,6 +411,7 @@
       calTip:"Pick a date",addMs:"+MS",addMsTip:"Add a milestone",msLabelPh:"name",milestone:"Milestone",
       startDelayTip:n=>`Start delay +${n}d`, endDelayTip:(n,act)=>`Finish delay +${n}d${act?" (active)":""}`,
       structCritTip:"On the critical path (if this slips, the whole project slips)",
+      structPredTip:ids=>`Depends on: ${ids}`, structSuccTip:ids=>`Blocks: ${ids}`,
       structInfo:(len,n)=>n?`CP: ${len}d/${n}`:"CP: none",
       structInfoTip:(len,n)=>n?`Critical path: ${len}d, ${n} task(s) — if this chain slips, the whole project slips`:"Critical path: no dependencies (_deps) set yet",
       doneTip:"Toggle done (check = actual end today; also start if not yet started)",
@@ -433,6 +441,7 @@
   let fileHandle=null, lock=false, lastData=null, pendingCenter=true;
   let editMode=false, curProjects=null, refreshTimer=null;                 // 編集モード関連
   let detailPath=null, detailNodeId=null, detailWritable=false, detailEditing=false;  // タスク詳細ダイアログ（editModeとは独立の第2編集経路）
+  let structPreds=new Map(), structSuccs=new Map(), structSelId=null;  // 構造タブ：クリックで依存の連鎖をハイライト（#66・矢印描画の軽量代替）
   let activeView="time";if(["progress","structure"].includes(lsGet("wbsView")))activeView=lsGet("wbsView");  // 右ペイン:時間(ガント)/進捗(完了率)/構造(クリティカルパス・#66)。既定=時間
   let timeScale="day";{const v=lsGet("wbsTimeScale");if(v==="week"||v==="month")timeScale=v;}  // 時間ビューの軸スケール:日/週/月。既定=日
   let pendingScaleCenter=false, lastRangeStart=null, lastDayPx=null;       // 日/週切替時だけ「表示中央の日付」を保ってスクロール復元（#pendingCenterと同型のワンショット）
@@ -663,7 +672,7 @@
     const hasEdge=allLeaves.some(n=>preds.get(String(n.id)).length>0);      // 依存が1本もなければ「最長の1タスク」を紛らわしく光らせない
     const criticalIds=new Set();
     if(hasEdge&&bestId!=null){let cur=bestId; while(cur!=null){criticalIds.add(cur); cur=from.get(cur);}}
-    return {criticalIds, criticalLen:hasEdge?bestLen:0};
+    return {criticalIds, criticalLen:hasEdge?bestLen:0, preds, succs};  // preds/succsは検証・重複排除済みの依存グラフ。構造タブのクリックハイライト（依存の連鎖を辿る）に再利用する
   }
   // 配下に1つでもcriticalなリーフがあるかを各ノードに1回のポストオーダー走査でメモ化（n._crit）。
   // 行ごとにleavesOf()で部分木を再走査するとネストで重複計算になるため、木を1回だけ辿ってO(n)にする
@@ -673,6 +682,23 @@
         ? markCritical(n.children,criticalIds).some(Boolean)
         : criticalIds.has(String(n.id));
       n._crit=any; return any;
+    });
+  }
+  // 構造タブ：選択中タスク(structSelId)の先行/後続を全経路(間接含む)辿ってハイライト（矢印描画の軽量代替・#66）。
+  // render()の再描画（データ編集・タブ再入等）のたびにも呼び直し、選択状態を最新のDOMへ再適用する
+  function structHighlight(){
+    const bars=[...document.querySelectorAll("#strows .bar.struct[data-id]")];
+    if(!structSelId){bars.forEach(b=>b.classList.remove("sel","pred","succ","faded"));return;}
+    const predSet=new Set(), succSet=new Set();
+    const walk=(id,map,set)=>{(map.get(id)||[]).forEach(x=>{if(!set.has(x)){set.add(x);walk(x,map,set);}});};
+    walk(structSelId,structPreds,predSet);
+    walk(structSelId,structSuccs,succSet);
+    bars.forEach(b=>{
+      const id=b.getAttribute("data-id");
+      b.classList.toggle("sel",id===structSelId);
+      b.classList.toggle("pred",predSet.has(id));
+      b.classList.toggle("succ",succSet.has(id));
+      b.classList.toggle("faded",id!==structSelId&&!predSet.has(id)&&!succSet.has(id));
     });
   }
 
@@ -951,6 +977,7 @@
     // 時間ビューと同じ日付軸(xOf/barW)を再利用し、plan期間のバーをクリティカルパスか否かだけで塗り分ける（矢印は引かない＝最小スコープ）
     function buildStructureRowBodies(){
       let strows="";
+      const visibleIds=new Set(rows.filter(r=>r.kind==="task"&&r.node._leaf).map(r=>String(r.node.id)));  // 状態/担当/期間フィルタ(#91-94)で非表示のidはツールチップにも出さない（誠実なview）
       rows.forEach(r=>{
         if(r.kind==="proj"){
           const cls=r.critical?"crit":"dim";
@@ -964,8 +991,17 @@
           const n=r.node,c=n._calc,leaf=n._leaf;
           const ps=c.planStart,pe=c.planEnd;
           const cls=r.critical?"crit":"dim";
-          const tip=r.critical?` title="${esc(t("structCritTip"))}"`:"";
-          const bar=ps&&pe?`<div class="bar struct${leaf?"":" thin"} ${cls}"${tip} style="left:${xOf(ps)}px;width:${barW(ps,pe)}px"></div>`:"";
+          const tipParts=[];                                                    // クリック可能なリーフだけ：状況＋先行/後続idをホバーで見える化
+          if(r.critical)tipParts.push(t("structCritTip"));
+          if(leaf){
+            const pd=(depPreds.get(String(n.id))||[]).filter(id=>visibleIds.has(id));
+            const sc=(depSuccs.get(String(n.id))||[]).filter(id=>visibleIds.has(id));
+            if(pd.length)tipParts.push(t("structPredTip")(pd.join(", ")));
+            if(sc.length)tipParts.push(t("structSuccTip")(sc.join(", ")));
+          }
+          const tip=tipParts.length?` title="${esc(tipParts.join(" / "))}"`:"";
+          const did=leaf?` data-id="${esc(n.id)}"`:"";                          // クリックハイライトの対象はリーフのみ（_deps自体がリーフ限定のためスコープを合わせる）
+          const bar=ps&&pe?`<div class="bar struct${leaf?"":" thin"} ${cls}"${tip}${did} style="left:${xOf(ps)}px;width:${barW(ps,pe)}px"></div>`:"";
           const lvl=`lvl${Math.min(r.depth,2)}`;
           strows+=`<div class="grow ${leaf?"leaf":"parent"} ${lvl}">${bar}</div>`;
         }
@@ -1035,6 +1071,7 @@
         rb.innerHTML=`<div id="ganttBg" style="width:${ganttW}px;height:${rowsH}px">${bg}</div>`
           +`<div id="strows">${strows}</div>`
           +`<div id="colHl"></div><div id="rowHl"></div>`;
+        structHighlight();                                                     // 再描画のたびに選択状態を新しいDOMへ再適用
       }else{
         rh.className="head"; rh.style.width=ganttW+"px";
         rh.innerHTML=`<div id="ym">${ym}</div><div id="dates">${dc}</div>`;
@@ -1086,7 +1123,8 @@
     const {ms, rows} = buildRows();
     const allLeaves=[]; projects.forEach(p=>allLeaves.push(...leavesOf(p.tasks)));
     const totalLoad=allLeaves.reduce((s,n)=>s+n._calc.load,0);
-    const {criticalIds, criticalLen} = computeCriticalPath(allLeaves);          // 依存関係/クリティカルパス（#66・構造タブ用）
+    const {criticalIds, criticalLen, preds:depPreds, succs:depSuccs} = computeCriticalPath(allLeaves);  // 依存関係/クリティカルパス（#66・構造タブ用）
+    structPreds=depPreds; structSuccs=depSuccs;                                 // クリックハイライト用に外側スコープへ橋渡し（dcBoundsと同じパターン）
     projects.forEach(p=>markCritical(p.tasks,criticalIds));                     // 各ノードに1回だけ後順走査でn._critをメモ化（O(n)）
     rows.forEach(r=>{                                                          // 配下に1つでもcriticalなリーフがあれば親/PJ行にも伝播（折りたたみ時も見える化）・n._critはO(1)参照
       r.critical = r.kind==="proj"
@@ -1267,6 +1305,7 @@
     $("editBtn").classList.remove("on");
     $("leftRows").classList.remove("editing");
     closeDetail();detailWritable=false;   // 詳細ダイアログの書込許可も新規ファイルでは失効させる（別ファイル/フォールバック読込後にensureWritable()をスキップして保存失敗させない）
+    structSelId=null;                     // 構造タブの選択状態も新規ファイルではリセット（別ファイルのidを引き継がない）
   }
   $("editBtn").addEventListener("click",async()=>{
     if(!editMode){
@@ -1581,6 +1620,13 @@
   }
   $("leftRows").addEventListener("click",e=>{const b=e.target.closest(".rsbdg");if(b)toggleRsPop(b.getAttribute("data-rslog"),b);});
   $("rightBody").addEventListener("click",e=>{const b=e.target.closest("[data-rslog]");if(b)toggleRsPop(b.getAttribute("data-rslog"),b);});
+  $("rightBody").addEventListener("click",e=>{                                 // 構造タブ：バーをクリックして依存の連鎖をハイライト（#66）
+    if(activeView!=="structure")return;                                       // 他タブでの#rightBodyクリックで選択状態を巻き込んで消さない
+    const bar=e.target.closest(".bar.struct[data-id]");
+    const id=bar?bar.getAttribute("data-id"):null;
+    structSelId=(id&&id!==structSelId)?id:null;                               // 同じバー再クリック／バー以外クリック＝解除
+    structHighlight();
+  });
 
   // ===== タスク詳細ダイアログ：表示モードでNo.列クリック→中央モーダルで閲覧・編集（editModeとは独立の第2経路） =====
   function detailRow(label,html){return `<div class="dm-row"><label>${esc(label)}</label><span>${html}</span></div>`;}
