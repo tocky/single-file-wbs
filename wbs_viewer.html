@@ -75,8 +75,10 @@
   #right.pview{overflow-x:hidden}   /* 進捗ビュー＝0-100%を幅に収めて全表示（横スクロール無し・左の折りたたみで幅が変われば追従） */
   .head{height:var(--header-h);position:sticky;top:0;z-index:4;background:var(--head-bg);border-bottom:2px solid var(--border)}
   #leftHead{display:flex}
-  #leftHead .h{padding:4px 5px;border-right:1px solid var(--border);font-weight:600;
+  #leftHead .h{padding:4px 5px;border-right:1px solid var(--border);font-weight:600;position:relative;
                display:flex;align-items:center;justify-content:center;height:var(--header-h);white-space:nowrap}
+  .colrs{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:6}  /* 作業項目列の幅ドラッグ用ハンドル */
+  .colrs:hover,.colrs.active{background:rgba(37,99,235,.35)}
   #leftHead .hg{height:var(--header-h);border-right:1px solid var(--border);display:flex;flex-direction:column}
   #leftHead .hgt{height:50%;display:flex;align-items:center;justify-content:center;font-weight:600;
                  border-bottom:1px solid var(--border)}
@@ -276,6 +278,7 @@
   const lsGet=k=>{try{return localStorage.getItem(k);}catch(_){return null;}};  // localStorage 読み出し（try/catch同型を一本化）
   const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){}};               // localStorage 書き込み
   const DAY_W=22, ROW_H=30, DAY_MS=86400000;
+  const NAME_W_DEFAULT=200, NAME_W_MIN=100, NAME_W_MAX=560;  // 作業項目列の幅調整（ドラッグ）の既定/下限/上限
   const SAVE_DEBOUNCE_MS=400, RENDER_DEFER_MS=350, FOCUS_POLL_MS=400;  // 自動保存と遅延再描画の間隔
   const SAVE_RETRY_DELAY_MS=250;  // InvalidStateError（同期/AVの横入り）時に1拍おいて1回だけ再試行する間隔
   // アイコン＝単色インラインSVG（currentColorで文字色に追従・ロゴと同トーン・依存ゼロ・#49）。葉だけベタ塗り(案A)・他はライン基調
@@ -298,7 +301,7 @@
       open:"ファイルを開く",openSub:"（ドラッグ&ドロップ）",reload:"更新",edit:"編集",langBtn:"EN",
       allTipExpand:"ツリーが全部展開されます ※Ctrl+Z でクリック前の状態に戻ります",
       allTipCollapse:"ツリーが全部折りたたまれます ※Ctrl+Z でクリック前の状態に戻ります",
-      colHide:"この列を畳む",colShow:"畳んだ列を開く",
+      colHide:"この列を畳む",colShow:"畳んだ列を開く",colResizeTip:"ドラッグで列幅を調整（ダブルクリックで既定幅に戻す）",
       editTitle:"インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します",
       notLoaded:"未読み込み",empty:"「ファイルを開く」または D&D で <b>wbs.json</b> を読み込んでください（Chrome）。",
       colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",colAsg:"担当",
@@ -341,7 +344,7 @@
       open:"Open file",openSub:"(drag & drop)",reload:"Reload",edit:"Edit",langBtn:"日本語",
       allTipExpand:"Expands the whole tree (Ctrl+Z restores the view before the click)",
       allTipCollapse:"Collapses the whole tree (Ctrl+Z restores the view before the click)",
-      colHide:"Collapse this column",colShow:"Expand collapsed column",
+      colHide:"Collapse this column",colShow:"Expand collapsed column",colResizeTip:"Drag to resize column (double-click to reset)",
       editTitle:"Inline editing (autosave). When turning ON, re-select wbs.json in the save dialog to grant write permission",
       notLoaded:"No file loaded",empty:"Load <b>wbs.json</b> via \"Open file\" or drag &amp; drop (Chrome).",
       colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",colAsg:"Owner",
@@ -481,6 +484,10 @@
   let colCollapsed=new Set();
   try{const s=JSON.parse(lsGet("wbsColCollapsed")||"[]");if(Array.isArray(s))colCollapsed=new Set(s);}catch(_){}
   function saveColCollapsed(){lsSet("wbsColCollapsed",JSON.stringify([...colCollapsed]));}
+
+  // 作業項目（タスク名）列の幅調整（ドラッグ）。localStorageに永続化
+  let nameColW=clamp(parseInt(lsGet("wbsNameW"),10)||NAME_W_DEFAULT,NAME_W_MIN,NAME_W_MAX);
+  function saveNameColW(){lsSet("wbsNameW",String(nameColW));}
   function effCols(){return COLS.filter(c=>{const g=COL_CG[c.key];return !(g&&colCollapsed.has(g));});}  // 畳んだ列は完全に消す（隙間を作らない）。+/−はタブ帯の上に絶対配置
 
   const isColor=s=>typeof s==="string"&&/^#[0-9a-fA-F]{3,8}$/.test(s);
@@ -554,7 +561,7 @@
       : (()=>{const mon=addStr(TODAY,-((parse(TODAY).getUTCDay()+6)%7));return [mon,addStr(mon,6)];})();
     const projects=normalizeProjects(data);
     curProjects=projects;                                                    // 編集ハンドラ用に保持
-    const cw=c=>editMode&&DATE_FIELDS[c.key]?84:editMode&&c.key==="name"?c.w+72:editMode&&(c.key==="qty"||c.key==="hrs")?52:c.w;  // 編集時：日付列84px(#59)・作業項目+72(操作ボタンぶん名前入力に幅確保)・数量/時間は▲▼を残し3桁見える52px
+    const cw=c=>editMode&&DATE_FIELDS[c.key]?84:c.key==="name"?nameColW+(editMode?72:0):editMode&&(c.key==="qty"||c.key==="hrs")?52:c.w;  // 編集時：日付列84px(#59)・作業項目はドラッグ幅+72(操作ボタンぶん名前入力に幅確保)・数量/時間は▲▼を残し3桁見える52px
 
     // --- 行モデル構築 ---
     // projects→rows（フィルタ適用・親残し判定）。ms は SVG オーバーレイ用のマイルストーン収集
@@ -618,7 +625,7 @@
           i=j-1;
         }else if(c.key==="name"){                                            // 作業項目ヘッダに全体caret（#52）
           const anyCol=rows.some(r=>r.collapsed);
-          lh+=`<div class="h" style="width:${cw(c)}px"><span id="allCaret" class="clk caret" title="${esc(t(anyCol?"allTipExpand":"allTipCollapse"))}">${anyCol?"▶":"▼"}</span>${esc(t(c.label))}</div>`;
+          lh+=`<div class="h name" style="width:${cw(c)}px"><span id="allCaret" class="clk caret" title="${esc(t(anyCol?"allTipExpand":"allTipCollapse"))}">${anyCol?"▶":"▼"}</span>${esc(t(c.label))}<span class="colrs" data-colrs="name" title="${esc(t("colResizeTip"))}"></span></div>`;
         }else if(c.key==="stat"){                                            // 状況=2段見出し＋色分け凡例（遅赤/実青/予黒）＝そのまま凡例
           const leg=`<span class="s-d">${esc(t("statD"))}</span><span class="s-x">/</span><span class="s-a">${esc(t("statA"))}</span><span class="s-x">/</span><span class="s-p">${esc(t("statP"))}</span>`;
           lh+=`<div class="h h2l" style="width:${cw(c)}px" title="${esc(t(c.tip))}">${esc(t(c.label))}<span class="unit">${leg}</span></div>`;
@@ -1249,6 +1256,46 @@
     right.addEventListener("mousemove",e=>{clearLeftCol();setCol(e.clientX);setRow(e.clientY);}); // ガント＝縦(日付列)＋横
     left.addEventListener("mousemove",e=>{clearCol();setLeftCol(e.clientX);setRow(e.clientY);});  // 作業項目＝縦(データ列)＋横。縦は今いるペインの列に切替
     main.addEventListener("mouseleave",()=>{clearCol();clearLeftCol();clearRow();});               // 表全体を出たら消す（左右間の移動では消さない）
+  }
+  // 作業項目列の幅ドラッグ（ヘッダはrender毎に差し替わるため #leftHead へ委譲登録）。
+  // ドラッグ中は名前セル＋#leftの幅だけ直接書き換えて追従（軽量・reflow最小）、確定時に render() で列折りたたみ+/−位置等を正確に補正。
+  {
+    const leftHead=$("leftHead");
+    let dragging=false,startX=0,startW=0,startLeftW=0,liveEls=null;
+    const applyLive=()=>{
+      const px=(nameColW+(editMode?72:0))+"px";
+      liveEls.forEach(el=>el.style.width=px);
+      const leftEl=$("left");
+      leftEl.style.width=(startLeftW+(nameColW-startW))+"px";                 // 起点幅+(現在-起点)＝ステップ間で二重加算しない
+    };
+    leftHead.addEventListener("mousedown",e=>{
+      const h=e.target.closest(".colrs"); if(!h)return;
+      e.preventDefault();
+      dragging=true;startX=e.clientX;startW=nameColW;
+      startLeftW=parseFloat($("left").style.width)||0;
+      liveEls=document.querySelectorAll("#leftHead .h.name, .lrow .c.name");  // mousemoveのたびにquerySelectorAllしない（多行データでの負荷対策）
+      document.body.style.cursor="col-resize";h.classList.add("active");
+      const onMove=e=>{
+        if(!dragging)return;
+        const w=clamp(startW+(e.clientX-startX),NAME_W_MIN,NAME_W_MAX);
+        if(w===nameColW)return;
+        nameColW=w;applyLive();
+      };
+      const onUp=()=>{
+        if(!dragging)return;
+        dragging=false;document.body.style.cursor="";h.classList.remove("active");liveEls=null;
+        document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);
+        window.removeEventListener("blur",onUp);
+        if(nameColW!==startW){saveNameColW();if(lastData)render(lastData);}
+      };
+      document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onUp);
+      window.addEventListener("blur",onUp);                                  // ウィンドウ外でボタンを離してmouseupを取り逃した時の保険
+    });
+    leftHead.addEventListener("dblclick",e=>{                                 // ダブルクリックで既定幅へ（変な幅にハマった時の逃げ道）
+      const h=e.target.closest(".colrs"); if(!h||!lastData)return;
+      if(nameColW===NAME_W_DEFAULT)return;
+      nameColW=NAME_W_DEFAULT;saveNameColW();render(lastData);
+    });
   }
   $("fallbackInput").addEventListener("change",async e=>{
     const f=e.target.files[0];if(f){fileHandle=null;fileMtime=0;curFileName=f.name;loadText(await f.text(),true,t("fileLabel")(f.name,f.size));}});
