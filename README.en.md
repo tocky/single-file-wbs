@@ -59,7 +59,7 @@ The latest version's main additions are the **structure tab** (dependency and cr
 
 - **Filter bar** — above the left table, four axes sit side by side: **state (to do / in progress / done), delayed-only, owner (multi-select), and period (today / this week / all)**. Values inside one axis combine with OR; axes combine with AND, so you can stack them freely — e.g. "in progress AND delayed AND assigned to me." It is **display-only**: neither `wbs.json` nor the time axis changes. Hiding a row is a blindfold, not a delete
 - **Column collapse** — **+/−** above the headers fold or unfold column groups (qty+hours, progress, status, owner, plan, actual, notes), freeing up room for the Gantt
-- **Task-name column resize** — drag the column boundary to resize the "Task" column (double-click to reset to the default width). Helpful when task names run long
+- **Column resize** — drag the column boundary to resize the "Task", "Owner", and "Notes" columns (double-click to reset to the default width). Helpful when task names, owner names, or notes run long
 
 ### Edit
 
@@ -79,7 +79,7 @@ The latest version's main additions are the **structure tab** (dependency and cr
 - **Narrow down**: the **filter bar** above the left table narrows by state, delay, owner, and period. Only the display changes — the data never moves
 - **Collapse rows**: click a project or phase name, or `▼/▶`. The **`▼/▶` in the Task column header** expands or collapses everything (**Ctrl+Z** restores the previous view after a slip)
 - **Collapse columns**: the **+/−** above the headers fold or unfold column groups (qty+hours, progress, status, owner, plan, actual, notes)
-- **Resize a column**: drag the right edge of the "Task" column header (double-click to reset to the default width)
+- **Resize a column**: drag the right edge of the "Task", "Owner", or "Notes" column header (double-click to reset to the default width)
 - **Gantt**: the day column under your mouse is **highlighted**, with its date emphasized in the header. **Hover a bar** to see the exact plan and actual dates
 - **Task details**: **click the No. column** to open a dialog in the center of the screen, where you can review or edit that one row without entering edit mode
 - **Dependency highlight**: on the Structure tab, **click** a task bar to bring up only its predecessors and successors (click again to clear)

@@ -317,7 +317,11 @@
   const DAY_W=22, ROW_H=30, DAY_MS=86400000;
   const WEEK_COL_W=70;   // 週表示：週1列の幅目安(px)。1日あたり=WEEK_COL_W/7≈10pxに圧縮（日精度は保ったまま軸をズームアウト）
   const MONTH_DAY_PX=2;  // 月表示：1日あたりpx。月の日数(28〜31)×これ＝月セル幅（丸め込みなし・長期プロジェクトの俯瞰用にさらに圧縮）
-  const NAME_W_DEFAULT=200, NAME_W_MIN=100, NAME_W_MAX=560;  // 作業項目列の幅調整（ドラッグ）の既定/下限/上限
+  const COL_RESIZE={                                          // ドラッグでリサイズ可能な列（既定/下限/上限/localStorageキー・#12）
+    name:{def:200,min:100,max:560,ls:"wbsNameW"},
+    asg: {def:64, min:40, max:200,ls:"wbsAsgW"},
+    note:{def:200,min:100,max:640,ls:"wbsNoteW"},
+  };
   const SAVE_DEBOUNCE_MS=400, RENDER_DEFER_MS=350, FOCUS_POLL_MS=400;  // 自動保存と遅延再描画の間隔
   const SAVE_RETRY_DELAY_MS=250;  // InvalidStateError（同期/AVの横入り）時に1拍おいて1回だけ再試行する間隔
   // アイコン＝単色インラインSVG（currentColorで文字色に追従・ロゴと同トーン・依存ゼロ・#49）。葉だけベタ塗り(案A)・他はライン基調
@@ -522,7 +526,7 @@
      view:(c,n,x)=>progStep(c.progress, editMode&&x.leaf, x.path)},
     {key:"stat",label:"colStat",tip:"colStatTip",w:104,cls:"r stat",         // 状況=遅れ/実績/予定（工数と同じ作り：2段ヘッダ＋セル1行右寄せ）
      view:c=>statusCell(c)},
-    {key:"asg",label:"colAsg",w:64,cls:"",
+    {key:"asg",label:"colAsg",w:64,cls:"asg",
      view:(c,n,x)=>x.leaf?esc(n.assignee||""):"", field:"assignee",edit:"text",get:(c,n)=>n.assignee||""},
     {key:"ps",label:"colStart",group:"grpPlan",w:64,cls:"r",
      view:c=>esc(mdSlash(c.planStart)), field:"ps",edit:"date",get:c=>shortDate(c.planStart)},
@@ -542,9 +546,10 @@
   try{const s=JSON.parse(lsGet("wbsColCollapsed")||"[]");if(Array.isArray(s))colCollapsed=new Set(s);}catch(_){}
   function saveColCollapsed(){lsSet("wbsColCollapsed",JSON.stringify([...colCollapsed]));}
 
-  // 作業項目（タスク名）列の幅調整（ドラッグ）。localStorageに永続化
-  let nameColW=clamp(parseInt(lsGet("wbsNameW"),10)||NAME_W_DEFAULT,NAME_W_MIN,NAME_W_MAX);
-  function saveNameColW(){lsSet("wbsNameW",String(nameColW));}
+  // 列幅調整（ドラッグ・#12）：作業項目/担当/備考。localStorageに列ごとに永続化
+  const colW={};
+  Object.keys(COL_RESIZE).forEach(k=>{const r=COL_RESIZE[k];colW[k]=clamp(parseInt(lsGet(r.ls),10)||r.def,r.min,r.max);});
+  function saveColW(k){lsSet(COL_RESIZE[k].ls,String(colW[k]));}
   function effCols(){return COLS.filter(c=>{const g=COL_CG[c.key];return !(g&&colCollapsed.has(g));});}  // 畳んだ列は完全に消す（隙間を作らない）。+/−はタブ帯の上に絶対配置
 
   const isColor=s=>typeof s==="string"&&/^#[0-9a-fA-F]{3,8}$/.test(s);
@@ -722,7 +727,7 @@
       : (()=>{const mon=addStr(TODAY,-((parse(TODAY).getUTCDay()+6)%7));return [mon,addStr(mon,6)];})();
     const projects=normalizeProjects(data);
     curProjects=projects;                                                    // 編集ハンドラ用に保持
-    const cw=c=>editMode&&DATE_FIELDS[c.key]?84:c.key==="name"?nameColW+(editMode?72:0):editMode&&(c.key==="qty"||c.key==="hrs")?52:c.w;  // 編集時：日付列84px(#59)・作業項目はドラッグ幅+72(操作ボタンぶん名前入力に幅確保)・数量/時間は▲▼を残し3桁見える52px
+    const cw=c=>editMode&&DATE_FIELDS[c.key]?84:COL_RESIZE[c.key]?colW[c.key]+(c.key==="name"&&editMode?72:0):editMode&&(c.key==="qty"||c.key==="hrs")?52:c.w;  // 編集時：日付列84px(#59)・作業項目はドラッグ幅+72(操作ボタンぶん名前入力に幅確保・#12で担当/備考にも幅調整を拡張)・数量/時間は▲▼を残し3桁見える52px
 
     // --- 行モデル構築 ---
     // projects→rows（フィルタ適用・親残し判定）。ms は SVG オーバーレイ用のマイルストーン収集
@@ -791,6 +796,10 @@
         }else if(c.key==="stat"){                                            // 状況=2段見出し＋色分け凡例（遅赤/実青/予黒）＝そのまま凡例
           const leg=`<span class="s-d">${esc(t("statD"))}</span><span class="s-x">/</span><span class="s-a">${esc(t("statA"))}</span><span class="s-x">/</span><span class="s-p">${esc(t("statP"))}</span>`;
           lh+=`<div class="h h2l" style="width:${cw(c)}px" title="${esc(t(c.tip))}">${esc(t(c.label))}<span class="unit">${leg}</span></div>`;
+        }else if(COL_RESIZE[c.key]){                                           // 担当・備考もドラッグで幅調整可能（name分岐で消費済みのためここは実質asg/note・#12）。
+          // 注意：この分岐は c.group／c.sub より後ろにある。将来COL_RESIZEに列を追加する時、その列のCOLSエントリに
+          // group/subを持たせるとそちらの分岐に先取りされてハンドルが出ない（エラーは出ない）。追加時はここに先に到達するか確認すること。
+          lh+=`<div class="h ${c.key}" style="width:${cw(c)}px">${esc(t(c.label))}<span class="colrs" data-colrs="${c.key}" title="${esc(t("colResizeTip"))}"></span></div>`;
         }else if(c.sub){                                                       // 単位付き見出し：短い単位は同一行・長い単位は2行（いずれも小さく薄く）。tipは計算式等のhover表示
           const tip=c.tip?` title="${esc(t(c.tip))}"`:"";
           lh+=c.inline
@@ -1504,44 +1513,58 @@
     left.addEventListener("mousemove",e=>{clearCol();setLeftCol(e.clientX);setRow(e.clientY);});  // 作業項目＝縦(データ列)＋横。縦は今いるペインの列に切替
     main.addEventListener("mouseleave",()=>{clearCol();clearLeftCol();clearRow();});               // 表全体を出たら消す（左右間の移動では消さない）
   }
-  // 作業項目列の幅ドラッグ（ヘッダはrender毎に差し替わるため #leftHead へ委譲登録）。
-  // ドラッグ中は名前セル＋#leftの幅だけ直接書き換えて追従（軽量・reflow最小）、確定時に render() で列折りたたみ+/−位置等を正確に補正。
+  // 列幅ドラッグ：作業項目/担当/備考（ヘッダはrender毎に差し替わるため #leftHead へ委譲登録・#12）。
+  // ドラッグ中は対象列のセル＋#leftの幅だけ直接書き換えて追従（軽量・reflow最小）、確定時に render() で列折りたたみ+/−位置等を正確に補正。
+  // liveEls（`.h.${key}`/`.c.${key}`）は col.cls===col.key が前提（#12で担当のclsを空文字から"asg"に変更したのはこのため）。
+  // 将来リサイズ対象列を増やす時はCOLSのclsをkeyと一致させること（一致しないとドラッグ中のライブ追従だけ静かに効かなくなる。確定時のrender()自体は正しい幅になる）。
   {
     const leftHead=$("leftHead");
-    let dragging=false,startX=0,startW=0,startLeftW=0,liveEls=null;
+    let dragging=false,dragKey=null,startX=0,startW=0,startLeftW=0,liveEls=null,pendingRefresh=false;
     const applyLive=()=>{
-      const px=(nameColW+(editMode?72:0))+"px";
+      const w=colW[dragKey];
+      const px=(w+(dragKey==="name"&&editMode?72:0))+"px";
       liveEls.forEach(el=>el.style.width=px);
-      const leftEl=$("left");
-      leftEl.style.width=(startLeftW+(nameColW-startW))+"px";                 // 起点幅+(現在-起点)＝ステップ間で二重加算しない
+      $("left").style.width=(startLeftW+(w-startW))+"px";                     // 起点幅+(現在-起点)＝ステップ間で二重加算しない（列によらず#left全体が追従）
+    };
+    const colrsTarget=e=>{                                                    // mousedown/dblclick共通：ハンドルとその列設定を1回で解決
+      const h=e.target.closest(".colrs"); if(!h)return null;
+      const key=h.getAttribute("data-colrs"), r=COL_RESIZE[key];
+      return r?{h,key,r}:null;
     };
     leftHead.addEventListener("mousedown",e=>{
-      const h=e.target.closest(".colrs"); if(!h)return;
+      if(dragging)return;                                                     // 前のドラッグがmouseup/blurを取りこぼしたまま新規ドラッグを始めない（列またぎでdragKey/liveElsが食い違うのを防ぐ）
+      const t=colrsTarget(e); if(!t)return;
+      const {h,key,r}=t;
       e.preventDefault();
-      dragging=true;startX=e.clientX;startW=nameColW;
+      pendingRefresh=!!refreshTimer;                                          // 保留中の遅延再描画がドラッグ中に発火するとliveElsが失効するため、ドラッグの間は止めておく
+      if(pendingRefresh){clearTimeout(refreshTimer);refreshTimer=null;}
+      dragging=true;dragKey=key;startX=e.clientX;startW=colW[key];
       startLeftW=parseFloat($("left").style.width)||0;
-      liveEls=document.querySelectorAll("#leftHead .h.name, .lrow .c.name");  // mousemoveのたびにquerySelectorAllしない（多行データでの負荷対策）
+      liveEls=document.querySelectorAll(`#leftHead .h.${key}, .lrow .c.${key}`);  // mousemoveのたびにquerySelectorAllしない（多行データでの負荷対策）
       document.body.style.cursor="col-resize";h.classList.add("active");
       const onMove=e=>{
         if(!dragging)return;
-        const w=clamp(startW+(e.clientX-startX),NAME_W_MIN,NAME_W_MAX);
-        if(w===nameColW)return;
-        nameColW=w;applyLive();
+        const w=clamp(startW+(e.clientX-startX),r.min,r.max);
+        if(w===colW[key])return;
+        colW[key]=w;applyLive();
       };
       const onUp=()=>{
         if(!dragging)return;
         dragging=false;document.body.style.cursor="";h.classList.remove("active");liveEls=null;
         document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);
         window.removeEventListener("blur",onUp);
-        if(nameColW!==startW){saveNameColW();if(lastData)render(lastData);}
+        if(colW[key]!==startW){saveColW(key);if(lastData)render(lastData);}
+        else if(pendingRefresh&&lastData)deferRender();                       // 幅を変えずに終えたら、止めておいた遅延再描画を再開する（編集内容の反映を取りこぼさない）
       };
       document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onUp);
       window.addEventListener("blur",onUp);                                  // ウィンドウ外でボタンを離してmouseupを取り逃した時の保険
     });
     leftHead.addEventListener("dblclick",e=>{                                 // ダブルクリックで既定幅へ（変な幅にハマった時の逃げ道）
-      const h=e.target.closest(".colrs"); if(!h||!lastData)return;
-      if(nameColW===NAME_W_DEFAULT)return;
-      nameColW=NAME_W_DEFAULT;saveNameColW();render(lastData);
+      if(!lastData)return;
+      const t=colrsTarget(e); if(!t)return;
+      const {key,r}=t;
+      if(colW[key]===r.def)return;
+      colW[key]=r.def;saveColW(key);render(lastData);
     });
   }
   $("fallbackInput").addEventListener("change",async e=>{
