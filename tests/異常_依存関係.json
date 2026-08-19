@@ -1,0 +1,78 @@
+{
+  "projects": [
+    {
+      "name": "依存関係の壊れ入力",
+      "milestones": [],
+      "tasks": [
+        {
+          "id": "1",
+          "name": "工程",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "自己参照（無視）",
+              "qty": 1, "hours": 8, "assignee": "田中",
+              "plan": { "start": "2026-06-01", "end": "2026-06-05" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["1.1"]
+            },
+            {
+              "id": "1.2",
+              "name": "存在しないid参照（無視）",
+              "qty": 1, "hours": 8, "assignee": "田中",
+              "plan": { "start": "2026-06-01", "end": "2026-06-05" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["999", "no-such-id"]
+            },
+            {
+              "id": "1.3",
+              "name": "非配列（無視）",
+              "qty": 1, "hours": 8, "assignee": "田中",
+              "plan": { "start": "2026-06-01", "end": "2026-06-05" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": "not-an-array"
+            },
+            {
+              "id": "2.1",
+              "name": "循環1（2.2待ち）",
+              "qty": 1, "hours": 8, "assignee": "佐藤",
+              "plan": { "start": "2026-06-01", "end": "2026-06-02" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["2.3"]
+            },
+            {
+              "id": "2.2",
+              "name": "循環2（2.1待ち）",
+              "qty": 1, "hours": 8, "assignee": "佐藤",
+              "plan": { "start": "2026-06-03", "end": "2026-06-04" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["2.1"]
+            },
+            {
+              "id": "2.3",
+              "name": "循環3（2.2待ち・2.1へ戻る）",
+              "qty": 1, "hours": 8, "assignee": "佐藤",
+              "plan": { "start": "2026-06-05", "end": "2026-06-06" },
+              "actual": { "start": null, "end": null },
+              "note": "",
+              "_deps": ["2.2"]
+            },
+            {
+              "id": "3.1",
+              "name": "循環と無関係の独立タスク（正常にCP計算対象になる）",
+              "qty": 1, "hours": 8, "assignee": "鈴木",
+              "plan": { "start": "2026-06-01", "end": "2026-06-10" },
+              "actual": { "start": null, "end": null },
+              "note": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

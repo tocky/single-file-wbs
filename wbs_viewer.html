@@ -179,9 +179,9 @@
   .htab-sp .ctglb{position:absolute;bottom:1px;transform:translateX(-50%);width:15px;height:15px;padding:0;line-height:12px;font-size:13px;font-weight:700;color:#666;background:#fff;border:1px solid #c3ccda;border-radius:3px;cursor:pointer}
   .htab-sp .ctglb:hover{background:#eef2ff;border-color:#9db4f0;color:#2563eb}
   #rtabs{position:sticky;top:0;left:0;z-index:6;height:var(--tab-h);display:flex;align-items:flex-end;gap:3px;padding-left:8px;background:#fff}
-  .rtab{padding:2px 16px 3px;font-size:12px;color:#8b94a3;background:#eceef2;border:1px solid #d4dae3;border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;line-height:1.3} /* 非選択=灰で沈める */
+  .rtab{padding:2px 16px 3px;font-size:12px;color:#8b94a3;background:#eceef2;border:1px solid #d4dae3;border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;line-height:1.3;flex:0 0 auto} /* 非選択=灰で沈める。flex-shrink:0＝タブ帯が狭くても潰れない */
   .rtab.on{background:#fdf2cc;color:var(--text);font-weight:600;border-color:#ead9a0;box-shadow:inset 0 2px 0 #e0a82e} /* 選択=淡クリーム+アンバー上線（データの青/赤/灰と被らないUI専用色） */
-  #rtabs .tscale{display:inline-flex;align-self:center;margin-left:8px;border:1px solid var(--btn-border);border-radius:11px;overflow:hidden}  /* 時間ビューの軸スケール(日/週/月)。時間タブ選択時のみ表示・見た目は期間フィルタ(#94)の.seg-btnを流用 */
+  #rtabs .tscale{display:inline-flex;flex:0 0 auto;align-self:center;margin-left:8px;border:1px solid var(--btn-border);border-radius:11px;overflow:hidden}  /* 時間ビューの軸スケール(日/週/月)。時間タブ選択時のみ表示・見た目は期間フィルタ(#94)の.seg-btnを流用 */
   #leftHead{top:var(--tab-h);border-right:2px solid var(--border)}
   #rightHead{top:var(--tab-h)}
   #rightHead.phead{height:var(--header-h)}
@@ -221,6 +221,13 @@
   .bar.actual.cut{border-radius:3px 0 0 3px}                                 /* 超過がある時は右角を直角に（赤と連続させる） */
   .bar.over{top:8px;height:14px;background:#e11d48;border-radius:0 3px 3px 0;z-index:1}                   /* 終了遅延=予定終了の超過分（枠の右を超える分・赤+N）。着手遅れは枠の左が空くことで表現＝専用バー不要 */
   .delay{position:absolute;top:-4px;font-size:10px;font-weight:700;color:#e11d48;white-space:nowrap;z-index:4;line-height:16px}  /* バーの上に出す＝本日付近を走るイナズマ線と被らない。枠(z2)より前面 */
+  /* 構造ビュー（依存関係/クリティカルパス・#66）：時間ビューと同じ日付軸に、plan期間をcrit(オレンジ)/dim(グレー)で塗り分け。
+     赤(#e11d48)は既に「終了遅延・イナズマ線」で意味が占有されているため、CP専用にOkabe-Ito安全パレットのオレンジを新規採用（tests/e2e/test_color_audit.py要更新） */
+  .bar.struct{top:8px;height:14px;border-radius:3px;z-index:1}
+  .bar.struct.crit{background:#e69f00}
+  .bar.struct.dim{background:#d7dbe0}
+  .grow.parent .bar.struct.thin{top:11px;height:8px}         /* 親=細いサマリー（形で葉と区別・色は増やさない・既存の.grow.parent .bar.planと同じ考え方） */
+  #cpinfo{margin-left:auto;margin-right:12px;align-self:center;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;cursor:help}  /* 幅が足りない時は省略記号（詳細はtitle）。タブ/軸スケールは潰さない */
   /* リスケ履歴(#96)＝直近の修正1本のトレイル。下レーン=開始の変化・上レーン=終了の変化（出る場所で修正種別が読める） */
   .rs-seg{position:absolute;top:26px;border-top:2px dotted #9aa2ad;z-index:1}
   .rs-seg.top{top:2px}
@@ -332,7 +339,7 @@
       detailAggTitle:"集計",detailEnableEdit:"編集する",detailClose:"閉じる",detailNoTip:"クリックで詳細を表示",detailActions:"操作",
       editTitle:"インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します",
       notLoaded:"未読み込み",empty:"「ファイルを開く」または D&D で <b>wbs.json</b> を読み込んでください（Chrome）。",
-      colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",tsDay:"日",tsWeek:"週",tsMonth:"月",colAsg:"担当",
+      colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",viewStructure:"構造",tsDay:"日",tsWeek:"週",tsMonth:"月",colAsg:"担当",
       colStart:"開始",colEnd:"終了",colNote:"備考",grpPlan:"予定",grpActual:"実績",
       fBar:"絞り込み",fLabel:"状態",fTodo:"未着手",fWip:"進行中",fDone:"完了",fTip:"状態で表示/非表示（表示専用・データは変えません）。押下＝表示中",
       fDelay:"遅延のみ",fDelayTip:"遅れているタスクだけ表示（進捗遅れ or 期限超過）。状態など他の絞り込みと重ねて効く（表示専用）",
@@ -348,6 +355,9 @@
       unsaved:"未保存の変更あり…",savedAt:"",saveFail:"保存失敗",savePending:"未保存（外部変更のため保留）",
       calTip:"カレンダーから選択",addMs:"＋MS",addMsTip:"マイルストーンを追加",msLabelPh:"マイルストーン名",milestone:"マイルストーン",
       startDelayTip:n=>`着手遅れ +${n}日`, endDelayTip:(n,act)=>`終了遅延 +${n}日${act?"・進行中":""}`,
+      structCritTip:"クリティカルパス上のタスク（この経路が延びると全体が延びる）",
+      structInfo:(len,n)=>n?`CP: ${len}日/${n}件`:"CP: 未設定",
+      structInfoTip:(len,n)=>n?`クリティカルパス：${len}日・${n}件（このタスク群が延びると全体が延びる）`:"クリティカルパス：依存関係(_deps)が未設定のため対象なし",
       doneTip:"完了/未完了を切替（チェックで実績終了＝今日。未着手なら着手も今日）",
       ym:(y,m)=>`${y}年${m}月`,
       yr:y=>`${y}年`,mo:m=>`${m}月`,   // 月表示の年セグメント/月セルラベル
@@ -377,7 +387,7 @@
       detailAggTitle:"Summary",detailEnableEdit:"Edit",detailClose:"Close",detailNoTip:"Click to view details",detailActions:"Actions",
       editTitle:"Inline editing (autosave). When turning ON, re-select wbs.json in the save dialog to grant write permission",
       notLoaded:"No file loaded",empty:"Load <b>wbs.json</b> via \"Open file\" or drag &amp; drop (Chrome).",
-      colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",tsDay:"Day",tsWeek:"Week",tsMonth:"Month",colAsg:"Owner",
+      colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",viewStructure:"Structure",tsDay:"Day",tsWeek:"Week",tsMonth:"Month",colAsg:"Owner",
       colStart:"Start",colEnd:"End",colNote:"Notes",grpPlan:"Plan",grpActual:"Actual",
       fBar:"Filter",fLabel:"State",fTodo:"To do",fWip:"In progress",fDone:"Done",fTip:"Show/hide by state (display only — data is never changed). Pressed = shown",
       fDelay:"Delayed only",fDelayTip:"Show only delayed tasks (behind schedule or past due). Combines with the other filters (display only)",
@@ -393,6 +403,9 @@
       unsaved:"Unsaved changes…",savedAt:"",saveFail:"Save failed",savePending:"Not saved (external change)",
       calTip:"Pick a date",addMs:"+MS",addMsTip:"Add a milestone",msLabelPh:"name",milestone:"Milestone",
       startDelayTip:n=>`Start delay +${n}d`, endDelayTip:(n,act)=>`Finish delay +${n}d${act?" (active)":""}`,
+      structCritTip:"On the critical path (if this slips, the whole project slips)",
+      structInfo:(len,n)=>n?`CP: ${len}d/${n}`:"CP: none",
+      structInfoTip:(len,n)=>n?`Critical path: ${len}d, ${n} task(s) — if this chain slips, the whole project slips`:"Critical path: no dependencies (_deps) set yet",
       doneTip:"Toggle done (check = actual end today; also start if not yet started)",
       ym:(y,m)=>`${EN_MONTHS[m-1]} ${y}`,
       yr:y=>`${y}`,mo:m=>EN_MONTHS[m-1],   // 月表示の年セグメント/月セルラベル
@@ -420,7 +433,7 @@
   let fileHandle=null, lock=false, lastData=null, pendingCenter=true;
   let editMode=false, curProjects=null, refreshTimer=null;                 // 編集モード関連
   let detailPath=null, detailNodeId=null, detailWritable=false, detailEditing=false;  // タスク詳細ダイアログ（editModeとは独立の第2編集経路）
-  let activeView="time";if(lsGet("wbsView")==="progress")activeView="progress";  // 右ペイン:時間(ガント)/進捗(完了率)。既定=時間
+  let activeView="time";if(["progress","structure"].includes(lsGet("wbsView")))activeView=lsGet("wbsView");  // 右ペイン:時間(ガント)/進捗(完了率)/構造(クリティカルパス・#66)。既定=時間
   let timeScale="day";{const v=lsGet("wbsTimeScale");if(v==="week"||v==="month")timeScale=v;}  // 時間ビューの軸スケール:日/週/月。既定=日
   let pendingScaleCenter=false, lastRangeStart=null, lastDayPx=null;       // 日/週切替時だけ「表示中央の日付」を保ってスクロール復元（#pendingCenterと同型のワンショット）
   // 状態フィルタ(#91)：表示専用＝rows(行)を間引くだけ。データ(wbs.json)も横軸(時間範囲)も不変。既存_calcで3排他状態を判定
@@ -606,6 +619,51 @@
     const calc={load,progress,pv,slip,isLeaf:true,allDone:!!ae,planStart:ps,planEnd:pe,  // 実績終了あり=完了
       actualStart:as,actualEnd:ae,actualEndEff};
     n._calc=calc;n._leaf=true;return calc;
+  }
+  // クリティカルパス計算（依存関係の可視化・#66）。_deps（先行タスクidの配列・リーフのみ対象）からグラフを構築し、
+  // トポロジカルソート＋最長路DPで最長の依存チェーンを求める。壊れた入力（循環・存在しないid参照・自己参照）は
+  // グラフから除外してクラッシュしない（既存の「壊れた入力でもクラッシュさせない」方針を踏襲）。
+  function computeCriticalPath(allLeaves){
+    const byId=new Map(); allLeaves.forEach(n=>byId.set(String(n.id),n));
+    const preds=new Map(), succs=new Map(), indeg=new Map();
+    allLeaves.forEach(n=>{const id=String(n.id); preds.set(id,[]); succs.set(id,[]); indeg.set(id,0);});
+    allLeaves.forEach(n=>{
+      const id=String(n.id);
+      const raw=Array.isArray(n._deps)?n._deps:[];                          // 非配列は依存無しとして扱う
+      const valid=raw.filter(d=>typeof d==="string"&&d!==id&&byId.has(d));  // 自己参照・存在しないid・非文字列は除外
+      preds.set(id,valid);
+      valid.forEach(d=>{succs.get(d).push(id); indeg.set(id,indeg.get(id)+1);});
+    });
+    const order=[], queue=[...indeg.keys()].filter(id=>indeg.get(id)===0);  // Kahnのトポロジカルソート
+    const indegWork=new Map(indeg);
+    while(queue.length){
+      const id=queue.shift(); order.push(id);
+      succs.get(id).forEach(s=>{const d=indegWork.get(s)-1; indegWork.set(s,d); if(d===0)queue.push(s);});
+    }
+    const orderSet=new Set(order);
+    const unresolved=new Set([...indeg.keys()].filter(id=>!orderSet.has(id)));  // 循環に含まれる/その後続＝解決不能
+    const duration=id=>{
+      const c=byId.get(id)._calc||{};
+      if(!c.planStart||!c.planEnd)return 0;                                 // plan日付欠損は経路長に寄与しない（グラフには残す）
+      const d=diff(c.planStart,c.planEnd);
+      return d>=0?d+1:0;                                                    // 逆転（終了<開始）も0扱い
+    };
+    const longest=new Map(), from=new Map();
+    order.forEach(id=>{
+      let best=0, bestFrom=null;
+      preds.get(id).forEach(p=>{
+        if(unresolved.has(p))return;
+        const v=longest.get(p)||0;
+        if(bestFrom===null||v>best){best=v;bestFrom=p;}  // 最初の有効な先行は0日でも経路として採用（duration=0で途切れさせない）
+      });
+      longest.set(id,best+duration(id)); from.set(id,bestFrom);
+    });
+    let bestId=null, bestLen=-1;                                            // 同点は最初に見つかった方（=決定論的なトポロジカル順）
+    order.forEach(id=>{const v=longest.get(id)||0; if(v>bestLen){bestLen=v; bestId=id;}});
+    const hasEdge=allLeaves.some(n=>preds.get(String(n.id)).length>0);      // 依存が1本もなければ「最長の1タスク」を紛らわしく光らせない
+    const criticalIds=new Set();
+    if(hasEdge&&bestId!=null){let cur=bestId; while(cur!=null){criticalIds.add(cur); cur=from.get(cur);}}
+    return {criticalIds, criticalLen:hasEdge?bestLen:0};
   }
 
   function render(data){
@@ -879,6 +937,32 @@
       return {lrows, grows, progRows, pts, rowsH:yTop};
     }
 
+    // --- 構造ビュー行構築（依存関係/クリティカルパス・#66）---
+    // 時間ビューと同じ日付軸(xOf/barW)を再利用し、plan期間のバーをクリティカルパスか否かだけで塗り分ける（矢印は引かない＝最小スコープ）
+    function buildStructureRowBodies(){
+      let strows="";
+      rows.forEach(r=>{
+        if(r.kind==="proj"){
+          const cls=r.critical?"crit":"dim";
+          const span=r.planStart&&r.planEnd?`<div class="bar struct thin ${cls}" style="left:${xOf(r.planStart)}px;width:${barW(r.planStart,r.planEnd)}px"></div>`:"";
+          strows+=`<div class="grow prow">${span}</div>`;
+          if(editMode&&!r.collapsed){                                          // 左表のMS編集行と行高を揃える（既存grows/progRowsと同じ空行挿入）
+            const msArr=((curProjects[r.pi]||{}).milestones)||[];
+            msArr.forEach(()=>{strows+=`<div class="grow msrow"></div>`;});
+          }
+        }else{
+          const n=r.node,c=n._calc,leaf=n._leaf;
+          const ps=c.planStart,pe=c.planEnd;
+          const cls=r.critical?"crit":"dim";
+          const tip=r.critical?` title="${esc(t("structCritTip"))}"`:"";
+          const bar=ps&&pe?`<div class="bar struct${leaf?"":" thin"} ${cls}"${tip} style="left:${xOf(ps)}px;width:${barW(ps,pe)}px"></div>`:"";
+          const lvl=`lvl${Math.min(r.depth,2)}`;
+          strows+=`<div class="grow ${leaf?"leaf":"parent"} ${lvl}">${bar}</div>`;
+        }
+      });
+      return strows;
+    }
+
     // --- SVGオーバーレイ構築 ---
     // 土日/祝日シェード・マイルストーン線・イナズマ線/点 を1つのSVG文字列として生成
     function buildSvgOverlay(){
@@ -922,9 +1006,11 @@
       document.querySelector(".htab-sp").innerHTML=ctgl;
       // 右ペインはタブで二択：アクティブな方"だけ"をDOM注入（非アクティブ側は文字列のまま捨てる＝重いDOM挿入は1ビューぶん）
       const rh=$("rightHead"); const rb=$("rightBody");
+      const VIEW_LABEL={time:"viewTime",progress:"viewProg",structure:"viewStructure"};
       $("rtabs").innerHTML=
-        ["time","progress"].map(v=>`<button class="rtab${v===activeView?" on":""}" data-view="${v}">${esc(t(v==="time"?"viewTime":"viewProg"))}</button>`).join("")
-        +(activeView==="time"?`<span class="tscale">`+["day","week","month"].map(s=>`<button class="tsc-btn${timeScale===s?" on":""}" data-scale="${s}">${esc(t({day:"tsDay",week:"tsWeek",month:"tsMonth"}[s]))}</button>`).join("")+`</span>`:"");  // 時間ビューの軸スケール(日/週/月)。時間タブの時だけ出す
+        ["time","progress","structure"].map(v=>`<button class="rtab${v===activeView?" on":""}" data-view="${v}">${esc(t(VIEW_LABEL[v]))}</button>`).join("")
+        +((activeView==="time"||activeView==="structure")?`<span class="tscale">`+["day","week","month"].map(s=>`<button class="tsc-btn${timeScale===s?" on":""}" data-scale="${s}">${esc(t({day:"tsDay",week:"tsWeek",month:"tsMonth"}[s]))}</button>`).join("")+`</span>`:"")  // 時間ビューの軸スケール(日/週/月)。時間軸を共有するタブ(時間・構造)の時だけ出す
+        +(activeView==="structure"?`<span id="cpinfo" title="${esc(t("structInfoTip")(criticalLen,criticalIds.size))}">${esc(t("structInfo")(criticalLen,criticalIds.size))}</span>`:"");  // クリティカルパスの日数・件数（#66）。ヘッダの高さを変えず既存のタブ帯の空きに収める（詳細はtitleツールチップ）
       $("right").classList.toggle("pview",activeView==="progress");  // 進捗ビューは横スクロール無し＝幅に収めて全表示（左の折りたたみで幅が変われば追従）
       if(activeView==="progress"){
         rh.className="head phead"; rh.style.width="";
@@ -932,6 +1018,13 @@
         rb.style.width=""; rb.style.height=rowsH+"px";
         rb.innerHTML=`<div id="pgrid">`+[20,40,60,80,100].map(p=>`<div class="pgl" style="left:${p}%"></div>`).join("")+`</div>`
           +`<div id="progbody">${progRows}</div><div id="colHl"></div><div id="rowHl"></div>`;
+      }else if(activeView==="structure"){                                     // 依存関係/クリティカルパス（#66）：時間ビューと同じ日付軸に重ね表示（矢印は引かない＝最小スコープ）
+        rh.className="head"; rh.style.width=ganttW+"px";
+        rh.innerHTML=`<div id="ym">${ym}</div><div id="dates">${dc}</div>`;
+        rb.style.width=ganttW+"px"; rb.style.height=rowsH+"px";
+        rb.innerHTML=`<div id="ganttBg" style="width:${ganttW}px;height:${rowsH}px">${bg}</div>`
+          +`<div id="strows">${strows}</div>`
+          +`<div id="colHl"></div><div id="rowHl"></div>`;
       }else{
         rh.className="head"; rh.style.width=ganttW+"px";
         rh.innerHTML=`<div id="ym">${ym}</div><div id="dates">${dc}</div>`;
@@ -982,6 +1075,12 @@
     const {ms, rows} = buildRows();
     const allLeaves=[]; projects.forEach(p=>allLeaves.push(...leavesOf(p.tasks)));
     const totalLoad=allLeaves.reduce((s,n)=>s+n._calc.load,0);
+    const {criticalIds, criticalLen} = computeCriticalPath(allLeaves);          // 依存関係/クリティカルパス（#66・構造タブ用）
+    rows.forEach(r=>{                                                          // 配下に1つでもcriticalなリーフがあれば親/PJ行にも伝播（折りたたみ時も見える化）
+      r.critical = r.kind==="proj"
+        ? leavesOf(projects[r.pi].tasks).some(n=>criticalIds.has(String(n.id)))
+        : leavesOf([r.node]).some(n=>criticalIds.has(String(n.id)));
+    });
     const {rangeStart,rangeEnd,totalDays,ganttW,xOf,centerOf,barW,xToday,dayPx} = buildRange();
     const eCols=effCols();
     const lh = buildLeftHeader();
@@ -990,6 +1089,7 @@
     const {lrows, grows, progRows, pts, rowsH} = buildRowBodies();
     pts.push([xToday,rowsH]);
     const svg = buildSvgOverlay();
+    const strows = activeView==="structure"?buildStructureRowBodies():"";       // 非アクティブ時は構築しない（他タブと同じ「片方だけ描く」方針）
     injectDOM();
     updateSummaryAndScroll();
     lastRangeStart=rangeStart; lastDayPx=dayPx; pendingScaleCenter=false;   // 次回の日/週切替スクロール保持のため記憶
