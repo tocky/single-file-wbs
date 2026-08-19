@@ -1261,18 +1261,19 @@
   // ドラッグ中は名前セル＋#leftの幅だけ直接書き換えて追従（軽量・reflow最小）、確定時に render() で列折りたたみ+/−位置等を正確に補正。
   {
     const leftHead=$("leftHead");
+    let dragging=false,startX=0,startW=0,startLeftW=0,liveEls=null;
     const applyLive=()=>{
       const px=(nameColW+(editMode?72:0))+"px";
-      document.querySelectorAll("#leftHead .h.name, .lrow .c.name").forEach(el=>el.style.width=px);
+      liveEls.forEach(el=>el.style.width=px);
       const leftEl=$("left");
       leftEl.style.width=(startLeftW+(nameColW-startW))+"px";                 // 起点幅+(現在-起点)＝ステップ間で二重加算しない
     };
-    let dragging=false,startX=0,startW=0,startLeftW=0;
     leftHead.addEventListener("mousedown",e=>{
       const h=e.target.closest(".colrs"); if(!h)return;
       e.preventDefault();
       dragging=true;startX=e.clientX;startW=nameColW;
       startLeftW=parseFloat($("left").style.width)||0;
+      liveEls=document.querySelectorAll("#leftHead .h.name, .lrow .c.name");  // mousemoveのたびにquerySelectorAllしない（多行データでの負荷対策）
       document.body.style.cursor="col-resize";h.classList.add("active");
       const onMove=e=>{
         if(!dragging)return;
@@ -1281,11 +1282,14 @@
         nameColW=w;applyLive();
       };
       const onUp=()=>{
-        dragging=false;document.body.style.cursor="";h.classList.remove("active");
+        if(!dragging)return;
+        dragging=false;document.body.style.cursor="";h.classList.remove("active");liveEls=null;
         document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);
+        window.removeEventListener("blur",onUp);
         if(nameColW!==startW){saveNameColW();if(lastData)render(lastData);}
       };
       document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onUp);
+      window.addEventListener("blur",onUp);                                  // ウィンドウ外でボタンを離してmouseupを取り逃した時の保険
     });
     leftHead.addEventListener("dblclick",e=>{                                 // ダブルクリックで既定幅へ（変な幅にハマった時の逃げ道）
       const h=e.target.closest(".colrs"); if(!h||!lastData)return;
