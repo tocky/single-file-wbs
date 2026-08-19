@@ -632,60 +632,66 @@
   // クリティカルパス計算（依存関係の可視化・#66）。_deps（先行タスクidの配列・リーフのみ対象）からグラフを構築し、
   // トポロジカルソート＋最長路DPで最長の依存チェーンを求める。壊れた入力（循環・存在しないid参照・自己参照）は
   // グラフから除外してクラッシュしない（既存の「壊れた入力でもクラッシュさせない」方針を踏襲）。
-  function computeCriticalPath(allLeaves){
-    const byId=new Map(); allLeaves.forEach(n=>byId.set(String(n.id),n));
-    const preds=new Map(), succs=new Map(), indeg=new Map();
-    allLeaves.forEach(n=>{const id=String(n.id); preds.set(id,[]); succs.set(id,[]); indeg.set(id,0);});
-    allLeaves.forEach(n=>{
-      const id=String(n.id);
+  // leafGroups=プロジェクトごとのリーフ配列（index=プロジェクトindex）。グラフの内部キーは`${pi}:${id}`の複合キーにし、
+  // 別プロジェクトの同一idリーフと衝突しないようにする（#7）。_depsの参照解決も同一プロジェクト内のみに限定する。
+  function computeCriticalPath(leafGroups){
+    const key=(pi,id)=>pi+":"+id;
+    const byId=new Map(), preds=new Map(), succs=new Map(), indeg=new Map();
+    const entries=[];
+    leafGroups.forEach((leaves,pi)=>leaves.forEach(n=>{const id=String(n.id); entries.push({pi,id,n}); byId.set(key(pi,id),n);}));
+    entries.forEach(({pi,id})=>{const k=key(pi,id); preds.set(k,[]); succs.set(k,[]); indeg.set(k,0);});
+    entries.forEach(({pi,id,n})=>{
+      const k=key(pi,id);
       const raw=Array.isArray(n._deps)?n._deps:[];                          // 非配列は依存無しとして扱う
-      const valid=[...new Set(raw.filter(d=>typeof d==="string"&&d!==id&&byId.has(d)))];  // 自己参照・存在しないid・非文字列は除外・重複は依存として1件扱い
-      preds.set(id,valid);
-      valid.forEach(d=>{succs.get(d).push(id); indeg.set(id,indeg.get(id)+1);});
+      const valid=[...new Set(raw.filter(d=>typeof d==="string"&&d!==id&&byId.has(key(pi,d))).map(d=>key(pi,d)))];  // 自己参照・存在しないid・非文字列・他プロジェクト参照は除外・重複は依存として1件扱い
+      preds.set(k,valid);
+      valid.forEach(dk=>{succs.get(dk).push(k); indeg.set(k,indeg.get(k)+1);});
     });
-    const order=[], queue=[...indeg.keys()].filter(id=>indeg.get(id)===0);  // Kahnのトポロジカルソート（queueはインデックスで消費・shift()のO(n)詰め直しを回避）
+    const order=[], queue=[...indeg.keys()].filter(k=>indeg.get(k)===0);    // Kahnのトポロジカルソート（queueはインデックスで消費・shift()のO(n)詰め直しを回避）
     const indegWork=new Map(indeg);
     for(let qi=0;qi<queue.length;qi++){
-      const id=queue[qi]; order.push(id);
-      succs.get(id).forEach(s=>{const d=indegWork.get(s)-1; indegWork.set(s,d); if(d===0)queue.push(s);});
+      const k=queue[qi]; order.push(k);
+      succs.get(k).forEach(s=>{const d=indegWork.get(s)-1; indegWork.set(s,d); if(d===0)queue.push(s);});
     }
     const orderSet=new Set(order);
-    const unresolved=new Set([...indeg.keys()].filter(id=>!orderSet.has(id)));  // 循環に含まれる/その後続＝解決不能
-    const duration=id=>{
-      const c=byId.get(id)._calc||{};
+    const unresolved=new Set([...indeg.keys()].filter(k=>!orderSet.has(k)));  // 循環に含まれる/その後続＝解決不能
+    const duration=k=>{
+      const c=byId.get(k)._calc||{};
       if(!c.planStart||!c.planEnd)return 0;                                 // plan日付欠損は経路長に寄与しない（グラフには残す）
       const d=diff(c.planStart,c.planEnd);
       return d>=0?d+1:0;                                                    // 逆転（終了<開始）も0扱い
     };
     const longest=new Map(), from=new Map();
-    order.forEach(id=>{
+    order.forEach(k=>{
       let best=0, bestFrom=null;
-      preds.get(id).forEach(p=>{
+      preds.get(k).forEach(p=>{
         if(unresolved.has(p))return;
         const v=longest.get(p)||0;
         if(bestFrom===null||v>best){best=v;bestFrom=p;}  // 最初の有効な先行は0日でも経路として採用（duration=0で途切れさせない）
       });
-      longest.set(id,best+duration(id)); from.set(id,bestFrom);
+      longest.set(k,best+duration(k)); from.set(k,bestFrom);
     });
-    let bestId=null, bestLen=-1;                                            // 同点は最初に見つかった方（=決定論的なトポロジカル順）
-    order.forEach(id=>{const v=longest.get(id)||0; if(v>bestLen){bestLen=v; bestId=id;}});
-    const hasEdge=allLeaves.some(n=>preds.get(String(n.id)).length>0);      // 依存が1本もなければ「最長の1タスク」を紛らわしく光らせない
+    let bestKey=null, bestLen=-1;                                           // 同点は最初に見つかった方（=決定論的なトポロジカル順）
+    order.forEach(k=>{const v=longest.get(k)||0; if(v>bestLen){bestLen=v; bestKey=k;}});
+    const hasEdge=entries.some(({pi,id})=>preds.get(key(pi,id)).length>0);  // 依存が1本もなければ「最長の1タスク」を紛らわしく光らせない
     const criticalIds=new Set();
-    if(hasEdge&&bestId!=null){let cur=bestId; while(cur!=null){criticalIds.add(cur); cur=from.get(cur);}}
-    return {criticalIds, criticalLen:hasEdge?bestLen:0, preds, succs};  // preds/succsは検証・重複排除済みの依存グラフ。構造タブのクリックハイライト（依存の連鎖を辿る）に再利用する
+    if(hasEdge&&bestKey!=null){let cur=bestKey; while(cur!=null){criticalIds.add(cur); cur=from.get(cur);}}
+    return {criticalIds, criticalLen:hasEdge?bestLen:0, preds, succs};  // criticalIds/preds/succsは`${pi}:${id}`複合キー。構造タブのクリックハイライト（依存の連鎖を辿る）に再利用する
   }
   // 配下に1つでもcriticalなリーフがあるかを各ノードに1回のポストオーダー走査でメモ化（n._crit）。
   // 行ごとにleavesOf()で部分木を再走査するとネストで重複計算になるため、木を1回だけ辿ってO(n)にする
-  function markCritical(tasks,criticalIds){
+  function markCritical(tasks,criticalIds,pi){
     return (tasks||[]).map(n=>{
       const any=n.children&&n.children.length
-        ? markCritical(n.children,criticalIds).some(Boolean)
-        : criticalIds.has(String(n.id));
+        ? markCritical(n.children,criticalIds,pi).some(Boolean)
+        : criticalIds.has(pi+":"+String(n.id));  // criticalIdsは`${pi}:${id}`複合キー（#7）
       n._crit=any; return any;
     });
   }
   // 構造タブ：選択中タスク(structSelId)の先行/後続を全経路(間接含む)辿ってハイライト（矢印描画の軽量代替・#66）。
-  // render()の再描画（データ編集・タブ再入等）のたびにも呼び直し、選択状態を最新のDOMへ再適用する
+  // render()の再描画（データ編集・タブ再入等）のたびにも呼び直し、選択状態を最新のDOMへ再適用する。
+  // structSelId/structPreds/structSuccsは`${pi}:${id}`複合キー（#7）。DOM側のdata-idはプロジェクト内で完結する表示用の生idのままなので、
+  // data-pi(=プロジェクトindex)と組み合わせて複合キーへ変換してから照合する。
   function structHighlight(){
     const bars=[...document.querySelectorAll("#strows .bar.struct[data-id]")];
     if(!structSelId){bars.forEach(b=>b.classList.remove("sel","pred","succ","faded"));return;}
@@ -695,11 +701,11 @@
     walk(structSelId,structSuccs,succSet);
     predSet.delete(structSelId); succSet.delete(structSelId);  // 循環依存でstructSelId自身が経路に戻ってきても選択(sel)表示を上書きしない
     bars.forEach(b=>{
-      const id=b.getAttribute("data-id");
-      b.classList.toggle("sel",id===structSelId);
-      b.classList.toggle("pred",predSet.has(id));
-      b.classList.toggle("succ",succSet.has(id));
-      b.classList.toggle("faded",id!==structSelId&&!predSet.has(id)&&!succSet.has(id));
+      const key=b.getAttribute("data-pi")+":"+b.getAttribute("data-id");
+      b.classList.toggle("sel",key===structSelId);
+      b.classList.toggle("pred",predSet.has(key));
+      b.classList.toggle("succ",succSet.has(key));
+      b.classList.toggle("faded",key!==structSelId&&!predSet.has(key)&&!succSet.has(key));
     });
   }
 
@@ -737,10 +743,10 @@
             if(hasCh){const kids=col?null:build(n.children,depth+1,path);
               const vis=col?leavesOf(n.children).some(x=>leafVisible(x._calc,TODAY,x.assignee)):kids.length>0;
               if(!vis)continue;
-              out.push({kind:"task",node:n,depth,key,collapsible:true,collapsed:col,terminal:col,path});
+              out.push({kind:"task",node:n,depth,key,collapsible:true,collapsed:col,terminal:col,path,pi});
               if(!col)out.push(...kids);
             }else{ if(!leafVisible(n._calc,TODAY,n.assignee))continue;
-              out.push({kind:"task",node:n,depth,key,collapsible:false,collapsed:false,terminal:true,path});}
+              out.push({kind:"task",node:n,depth,key,collapsible:false,collapsed:false,terminal:true,path,pi});}
           }return out;})(proj.tasks||[],0,String(pi));
         rows.push({kind:"proj",name:proj.name,pi,load,prog,progress:prog,pv:pvAgg,slip:Math.max(pvAgg-prog,0),key:pkey,collapsible:true,collapsed:pcol,terminal:pcol,
           planStart:minStr(lv.map(n=>n._calc.planStart)),planEnd:maxStr(lv.map(n=>n._calc.planEnd)),
@@ -978,7 +984,7 @@
     // 時間ビューと同じ日付軸(xOf/barW)を再利用し、plan期間のバーをクリティカルパスか否かだけで塗り分ける（矢印は引かない＝最小スコープ）
     function buildStructureRowBodies(){
       let strows="";
-      const visibleIds=new Set(rows.filter(r=>r.kind==="task"&&r.node._leaf).map(r=>String(r.node.id)));  // 状態/担当/期間フィルタ(#91-94)で非表示のidはツールチップにも出さない（誠実なview）
+      const visibleKeys=new Set(rows.filter(r=>r.kind==="task"&&r.node._leaf).map(r=>r.pi+":"+String(r.node.id)));  // 状態/担当/期間フィルタ(#91-94)で非表示のidはツールチップにも出さない（誠実なview）。`${pi}:${id}`複合キーでプロジェクトを跨いだ誤判定を防ぐ（#7）
       rows.forEach(r=>{
         if(r.kind==="proj"){
           const cls=r.critical?"crit":"dim";
@@ -995,13 +1001,15 @@
           const tipParts=[];                                                    // クリック可能なリーフだけ：状況＋先行/後続idをホバーで見える化
           if(r.critical)tipParts.push(t("structCritTip"));
           if(leaf){
-            const pd=(depPreds.get(String(n.id))||[]).filter(id=>visibleIds.has(id));
-            const sc=(depSuccs.get(String(n.id))||[]).filter(id=>visibleIds.has(id));
+            const own=r.pi+":"+String(n.id);
+            const toId=k=>k.slice(k.indexOf(":")+1);                            // 表示は`${pi}:${id}`の複合キーからidだけ戻す（同一プロジェクト内なので剥がして問題ない）
+            const pd=(depPreds.get(own)||[]).filter(k=>visibleKeys.has(k)).map(toId);
+            const sc=(depSuccs.get(own)||[]).filter(k=>visibleKeys.has(k)).map(toId);
             if(pd.length)tipParts.push(t("structPredTip")(pd.join(", ")));
             if(sc.length)tipParts.push(t("structSuccTip")(sc.join(", ")));
           }
           const tip=tipParts.length?` title="${esc(tipParts.join(" / "))}"`:"";
-          const did=leaf?` data-id="${esc(n.id)}"`:"";                          // クリックハイライトの対象はリーフのみ（_deps自体がリーフ限定のためスコープを合わせる）
+          const did=leaf?` data-id="${esc(n.id)}" data-pi="${r.pi}"`:"";         // クリックハイライトの対象はリーフのみ（_deps自体がリーフ限定のためスコープを合わせる）。data-piでプロジェクトを識別（#7）
           const bar=ps&&pe?`<div class="bar struct${leaf?"":" thin"} ${cls}"${tip}${did} style="left:${xOf(ps)}px;width:${barW(ps,pe)}px"></div>`:"";
           const lvl=`lvl${Math.min(r.depth,2)}`;
           strows+=`<div class="grow ${leaf?"leaf":"parent"} ${lvl}">${bar}</div>`;
@@ -1124,9 +1132,10 @@
     const {ms, rows} = buildRows();
     const allLeaves=[]; projects.forEach(p=>allLeaves.push(...leavesOf(p.tasks)));
     const totalLoad=allLeaves.reduce((s,n)=>s+n._calc.load,0);
-    const {criticalIds, criticalLen, preds:depPreds, succs:depSuccs} = computeCriticalPath(allLeaves);  // 依存関係/クリティカルパス（#66・構造タブ用）
+    const leafGroups=projects.map(p=>leavesOf(p.tasks));                        // プロジェクトごとにグループ化（依存解決をプロジェクト内に限定・#7）
+    const {criticalIds, criticalLen, preds:depPreds, succs:depSuccs} = computeCriticalPath(leafGroups);  // 依存関係/クリティカルパス（#66・構造タブ用）
     structPreds=depPreds; structSuccs=depSuccs;                                 // クリックハイライト用に外側スコープへ橋渡し（dcBoundsと同じパターン）
-    projects.forEach(p=>markCritical(p.tasks,criticalIds));                     // 各ノードに1回だけ後順走査でn._critをメモ化（O(n)）
+    projects.forEach((p,pi)=>markCritical(p.tasks,criticalIds,pi));             // 各ノードに1回だけ後順走査でn._critをメモ化（O(n)）
     rows.forEach(r=>{                                                          // 配下に1つでもcriticalなリーフがあれば親/PJ行にも伝播（折りたたみ時も見える化）・n._critはO(1)参照
       r.critical = r.kind==="proj"
         ? (projects[r.pi].tasks||[]).some(n=>n._crit)
@@ -1624,8 +1633,8 @@
   $("rightBody").addEventListener("click",e=>{                                 // 構造タブ：バーをクリックして依存の連鎖をハイライト（#66）
     if(activeView!=="structure")return;                                       // 他タブでの#rightBodyクリックで選択状態を巻き込んで消さない
     const bar=e.target.closest(".bar.struct[data-id]");
-    const id=bar?bar.getAttribute("data-id"):null;
-    structSelId=(id&&id!==structSelId)?id:null;                               // 同じバー再クリック／バー以外クリック＝解除
+    const key=bar?bar.getAttribute("data-pi")+":"+bar.getAttribute("data-id"):null;  // `${pi}:${id}`複合キー（#7）
+    structSelId=(key&&key!==structSelId)?key:null;                            // 同じバー再クリック／バー以外クリック＝解除
     structHighlight();
   });
 

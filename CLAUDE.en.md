@@ -281,6 +281,7 @@ Avoid the following when entering data (nothing crashes, but display degrades).
 | **Duplicate ids** within one project | Collapse keys collide (same ids open/close together) |
 | `_deps` non-array / entries referencing a non-existent id or self | **Ignored** (only invalid deps are dropped; valid ones still build the graph. No crash) |
 | `_deps` with a **cyclic dependency** | Tasks in the cycle (and their successors) are excluded from critical-path ranking. Rendering proceeds normally; no crash |
+| **A leaf with the same id exists in another project** (as a `_deps` target) | **Ignored** — `_deps` resolution is scoped to the same project only; it never links to a same-id task in a different project. Critical-path calculation and the structure tab's click-highlight are likewise scoped per project (#7) |
 | `projects: []` / `tasks: []` (empty) | Empty view (no crash) |
 | Top level `null` / number / non-object | Empty view (no crash) |
 | Invalid JSON (D&D / file picker / reload) | Alert shown (no silent failure) |

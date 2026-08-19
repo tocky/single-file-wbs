@@ -130,6 +130,44 @@ with sync_playwright() as p:
           f"フィルタを解除するとツールチップも復元される -> {tip13_restored!r}")
 
     check(len(errors) == 0, f"一連の操作でJSエラー無し -> {errors}")
+
+    # --- プロジェクト横断のid衝突で依存グラフが誤結線しないこと（#7） ---
+    errors.clear()
+    DATA_CROSS = load_test_json("異常_依存関係_プロジェクト横断id衝突.json")
+    pg.evaluate("d=>window.renderData(d)", DATA_CROSS); pg.wait_for_timeout(150)
+    pg.click(".rtab[data-view='structure']"); pg.wait_for_timeout(150)
+    check(len(errors) == 0, f"idが衝突するデータを読み込んでもJSエラー無し -> {errors}")
+
+    def cross_classes(pg):
+        return pg.evaluate("""()=>Object.fromEntries([...document.querySelectorAll('#strows .bar.struct[data-id]')]
+          .map(b=>[b.getAttribute('data-pi')+':'+b.getAttribute('data-id'), [...b.classList].filter(c=>['sel','pred','succ','faded'].includes(c))]))""")
+
+    cpinfo_cross = pg.inner_text("#cpinfo")
+    check("12" in cpinfo_cross and "2" in cpinfo_cross,
+          f"クリティカルパスはプロジェクトAの最長経路(1.1→1.2=12日/2件)のみを指す（プロジェクトBの同idと混線しない） -> {cpinfo_cross!r}")
+
+    # プロジェクトA(pi=0)の1.2をクリック → 自プロジェクトの1.1だけがpred。別プロジェクト(B)の同idバーは無関係のまま
+    pg.click("#strows .bar.struct[data-id='1.2'][data-pi='0']"); pg.wait_for_timeout(100)
+    clsA = cross_classes(pg)
+    check(clsA["0:1.2"] == ["sel"], f"プロジェクトAの1.2はsel -> {clsA['0:1.2']}")
+    check(clsA["0:1.1"] == ["pred"], f"プロジェクトAの1.1はpred -> {clsA['0:1.1']}")
+    check(clsA["1:1.1"] == ["faded"], f"別プロジェクト(B)の同id(1.1)はpredにならず無関係(faded) -> {clsA['1:1.1']}")
+    check(clsA["1:1.2"] == ["faded"], f"別プロジェクト(B)の同id(1.2)も無関係(faded) -> {clsA['1:1.2']}")
+
+    tipA12 = pg.get_attribute("#strows .bar.struct[data-id='1.2'][data-pi='0']", "title") or ""
+    check("先行: 1.1" in tipA12, f"プロジェクトAの1.2のツールチップは自プロジェクトの1.1のみ参照 -> {tipA12!r}")
+
+    pg.click("#strows .bar.struct[data-id='1.2'][data-pi='0']"); pg.wait_for_timeout(100)  # 解除
+
+    # プロジェクトB(pi=1)の1.2をクリック → 自プロジェクトの1.1だけがpred。プロジェクトAのバーは無関係
+    pg.click("#strows .bar.struct[data-id='1.2'][data-pi='1']"); pg.wait_for_timeout(100)
+    clsB = cross_classes(pg)
+    check(clsB["1:1.2"] == ["sel"], f"プロジェクトBの1.2はsel -> {clsB['1:1.2']}")
+    check(clsB["1:1.1"] == ["pred"], f"プロジェクトBの1.1はpred -> {clsB['1:1.1']}")
+    check(clsB["0:1.1"] == ["faded"], f"別プロジェクト(A)の同id(1.1)はpredにならず無関係(faded) -> {clsB['0:1.1']}")
+    check(clsB["0:1.2"] == ["faded"], f"別プロジェクト(A)の同id(1.2)も無関係(faded) -> {clsB['0:1.2']}")
+
+    check(len(errors) == 0, f"プロジェクト横断id衝突ケースの一連の操作でJSエラー無し -> {errors}")
     b.close()
 
 finish(errors)
