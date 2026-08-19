@@ -1154,6 +1154,7 @@
     editMode=false;notice("");
     $("editBtn").classList.remove("on");
     $("leftRows").classList.remove("editing");
+    closeDetail();detailWritable=false;   // 詳細ダイアログの書込許可も新規ファイルでは失効させる（別ファイル/フォールバック読込後にensureWritable()をスキップして保存失敗させない）
   }
   $("editBtn").addEventListener("click",async()=>{
     if(!editMode){
@@ -1556,7 +1557,9 @@
     }
     if(!el.hasAttribute("data-field"))return;
     const pr=resolvePath(el.getAttribute("data-path")); if(!pr.node)return;
-    applyField(pr.node,el.getAttribute("data-field"),el.value);
+    const field=el.getAttribute("data-field");
+    applyField(pr.node,field,el.value);
+    if(field==="id")detailNodeId=pr.node.id;   // id編集時はズレ検知の基準も更新（更新しないと次回renderDetail()で自動closeしてしまう）
     queueSave(); deferRender();
   });
   document.addEventListener("click",e=>{
