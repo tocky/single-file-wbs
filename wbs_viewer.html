@@ -796,7 +796,9 @@
         }else if(c.key==="stat"){                                            // 状況=2段見出し＋色分け凡例（遅赤/実青/予黒）＝そのまま凡例
           const leg=`<span class="s-d">${esc(t("statD"))}</span><span class="s-x">/</span><span class="s-a">${esc(t("statA"))}</span><span class="s-x">/</span><span class="s-p">${esc(t("statP"))}</span>`;
           lh+=`<div class="h h2l" style="width:${cw(c)}px" title="${esc(t(c.tip))}">${esc(t(c.label))}<span class="unit">${leg}</span></div>`;
-        }else if(COL_RESIZE[c.key]){                                           // 担当・備考もドラッグで幅調整可能（name分岐で消費済みのためここは実質asg/note・#12）
+        }else if(COL_RESIZE[c.key]){                                           // 担当・備考もドラッグで幅調整可能（name分岐で消費済みのためここは実質asg/note・#12）。
+          // 注意：この分岐は c.group／c.sub より後ろにある。将来COL_RESIZEに列を追加する時、その列のCOLSエントリに
+          // group/subを持たせるとそちらの分岐に先取りされてハンドルが出ない（エラーは出ない）。追加時はここに先に到達するか確認すること。
           lh+=`<div class="h ${c.key}" style="width:${cw(c)}px">${esc(t(c.label))}<span class="colrs" data-colrs="${c.key}" title="${esc(t("colResizeTip"))}"></span></div>`;
         }else if(c.sub){                                                       // 単位付き見出し：短い単位は同一行・長い単位は2行（いずれも小さく薄く）。tipは計算式等のhover表示
           const tip=c.tip?` title="${esc(t(c.tip))}"`:"";
@@ -1513,19 +1515,29 @@
   }
   // 列幅ドラッグ：作業項目/担当/備考（ヘッダはrender毎に差し替わるため #leftHead へ委譲登録・#12）。
   // ドラッグ中は対象列のセル＋#leftの幅だけ直接書き換えて追従（軽量・reflow最小）、確定時に render() で列折りたたみ+/−位置等を正確に補正。
+  // liveEls（`.h.${key}`/`.c.${key}`）は col.cls===col.key が前提（#12で担当のclsを空文字から"asg"に変更したのはこのため）。
+  // 将来リサイズ対象列を増やす時はCOLSのclsをkeyと一致させること（一致しないとドラッグ中のライブ追従だけ静かに効かなくなる。確定時のrender()自体は正しい幅になる）。
   {
     const leftHead=$("leftHead");
-    let dragging=false,dragKey=null,startX=0,startW=0,startLeftW=0,liveEls=null;
+    let dragging=false,dragKey=null,startX=0,startW=0,startLeftW=0,liveEls=null,pendingRefresh=false;
     const applyLive=()=>{
       const w=colW[dragKey];
       const px=(w+(dragKey==="name"&&editMode?72:0))+"px";
       liveEls.forEach(el=>el.style.width=px);
       $("left").style.width=(startLeftW+(w-startW))+"px";                     // 起点幅+(現在-起点)＝ステップ間で二重加算しない（列によらず#left全体が追従）
     };
+    const colrsTarget=e=>{                                                    // mousedown/dblclick共通：ハンドルとその列設定を1回で解決
+      const h=e.target.closest(".colrs"); if(!h)return null;
+      const key=h.getAttribute("data-colrs"), r=COL_RESIZE[key];
+      return r?{h,key,r}:null;
+    };
     leftHead.addEventListener("mousedown",e=>{
-      const h=e.target.closest(".colrs"); if(!h)return;
-      const key=h.getAttribute("data-colrs"); const r=COL_RESIZE[key]; if(!r)return;
+      if(dragging)return;                                                     // 前のドラッグがmouseup/blurを取りこぼしたまま新規ドラッグを始めない（列またぎでdragKey/liveElsが食い違うのを防ぐ）
+      const t=colrsTarget(e); if(!t)return;
+      const {h,key,r}=t;
       e.preventDefault();
+      pendingRefresh=!!refreshTimer;                                          // 保留中の遅延再描画がドラッグ中に発火するとliveElsが失効するため、ドラッグの間は止めておく
+      if(pendingRefresh){clearTimeout(refreshTimer);refreshTimer=null;}
       dragging=true;dragKey=key;startX=e.clientX;startW=colW[key];
       startLeftW=parseFloat($("left").style.width)||0;
       liveEls=document.querySelectorAll(`#leftHead .h.${key}, .lrow .c.${key}`);  // mousemoveのたびにquerySelectorAllしない（多行データでの負荷対策）
@@ -1542,13 +1554,15 @@
         document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);
         window.removeEventListener("blur",onUp);
         if(colW[key]!==startW){saveColW(key);if(lastData)render(lastData);}
+        else if(pendingRefresh&&lastData)deferRender();                       // 幅を変えずに終えたら、止めておいた遅延再描画を再開する（編集内容の反映を取りこぼさない）
       };
       document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onUp);
       window.addEventListener("blur",onUp);                                  // ウィンドウ外でボタンを離してmouseupを取り逃した時の保険
     });
     leftHead.addEventListener("dblclick",e=>{                                 // ダブルクリックで既定幅へ（変な幅にハマった時の逃げ道）
-      const h=e.target.closest(".colrs"); if(!h||!lastData)return;
-      const key=h.getAttribute("data-colrs"); const r=COL_RESIZE[key]; if(!r)return;
+      if(!lastData)return;
+      const t=colrsTarget(e); if(!t)return;
+      const {key,r}=t;
       if(colW[key]===r.def)return;
       colW[key]=r.def;saveColW(key);render(lastData);
     });
