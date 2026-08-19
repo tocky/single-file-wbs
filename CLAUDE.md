@@ -331,6 +331,7 @@
 - **repo**：`tocky/single-file-wbs`（issue・PR の作業対象。フォーク元 `piguo45/single-file-wbs` ではない）／**roadmap**：`wbs_roadmap.json`。
 - **issueタイトル**：`【表示】【編集】` 等のカテゴリ接頭辞。
 - **version**：後方互換の機能追加＝MINOR／バグ修正＝PATCH／破壊的・正体変更＝MAJOR（一度だけ）。
+- **リリースノート**：機能サマリ（ja/en併記）に加えて、**GitHub標準の「What's Changed」形式でPR・issueへのリンクを列挙する**（一般的なOSSの慣習に合わせる）。`gh pr list --state merged`等で前回リリース以降のPRを洗い出し、各行を `* <タイトル> by @<author> in <PR URL>` の形式で書く。close したissueがあれば当該PRの行に `(closes <issue URL>)` を添える。
 
 ### ガードレール（毎回）
 - **push 前 PII grep**（ユーザー名・メール・絶対パス・実名・社内名）／コミットメール＝**GitHub noreply**／`git push --force` 禁止。
