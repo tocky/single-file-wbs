@@ -1264,11 +1264,16 @@
       if(idx<0){band.style.display="none";return;}
       const b=leftColBounds[idx]; band.style.left=b.rel+"px";band.style.width=b.w+"px";band.style.display="block";
     };
-    const setCol=clientX=>{                                                   // 縦：日付列（ガント領域のみ）。週表示は端セル幅が不定なため、render時に算出したdcBounds(コンテンツ座標)で判定
+    const setCol=clientX=>{                                                   // 縦：日付列（ガント領域のみ）。日表示は等幅なのでO(1)除算、週表示は端セル幅が不定なためdcBounds(コンテンツ座標)を二分探索
       const col=$("colHl"); if(!col)return;
       const days=document.querySelectorAll("#dates .d");
       const contentX=clientX-right.getBoundingClientRect().left+right.scrollLeft;
-      const idx=dcBounds.findIndex(b=>contentX>=b.l&&contentX<b.r);
+      let idx;
+      if(timeScale==="week"){                                                // dcBoundsは左端昇順・隙間なし前提の二分探索（mousemove毎の線形走査を避ける）
+        let lo=0,hi=dcBounds.length-1; idx=-1;
+        while(lo<=hi){const mid=(lo+hi)>>1,b=dcBounds[mid];
+          if(contentX<b.l)hi=mid-1; else if(contentX>=b.r)lo=mid+1; else{idx=mid;break;}}
+      }else idx=Math.floor(contentX/DAY_W);
       if(idx<0||idx>=days.length){clearCol();return;}                        // 進捗ビュー等で#datesが無い間は days.length=0 になり安全に抜ける（dcBoundsは直近「時間」render時のまま残るため）
       if(idx===hlIdx)return;
       const prev=days[hlIdx];if(prev)prev.classList.remove("hl");
