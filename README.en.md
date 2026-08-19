@@ -1,13 +1,13 @@
 # <img src="docs/logo.svg" width="26"> single-file-wbs
 
-> A dependency-free, single-file WBS / Gantt viewer: a time-axis Gantt plus an EVM-style progress-axis view and a Japanese *inazuma* (slip / progress) line. Just open the HTML in Chrome — no server, no libraries, no build step.
+> A dependency-free, single-file WBS / Gantt viewer: a time-axis Gantt, an EVM-style progress-axis view, a structure view that visualizes task dependencies, and a Japanese *inazuma* (slip / progress) line. Just open the HTML in Chrome — no server, no libraries, no build step.
 > The on-screen application name is **WBS Viewer** (`single-file-wbs` is the distribution name — this repository).
 
 **[日本語版 README はこちら / Japanese README](README.md)**
 
 ![screenshot](docs/screenshot.en.png)
 
-Switch with the **Time / Progress tabs** (top right). Progress view (EVM-style completion — actual, planned, behind):
+Switch with the **Time / Progress / Structure tabs** (top right). Progress view (EVM-style completion — actual, planned, behind):
 
 ![progress view](docs/screenshot-progress.en.png)
 
@@ -34,24 +34,36 @@ Updating the tool means overwriting `wbs_viewer.html`; your `wbs.json` data is n
 
 ## What it does
 
-The latest version's main additions are the **filter bar** (narrow by state, delay, owner, and period) and **reschedule history** (record why a plan changed). See [Releases](https://github.com/piguo45/single-file-wbs/releases) for the full changelog.
+The latest version's main additions are the **structure tab** (dependency and critical-path visualization) and the **task detail dialog** (click the No. column for lightweight, single-row editing). See [Releases](https://github.com/piguo45/single-file-wbs/releases) for the full changelog.
 
 ### See
 
 - **Inazuma line (progress line)** — it bulges **left of the today line when a task is behind**, making start delays and deadline overruns visible at a glance
 - **Plan-vs-actual Gantt overlay** — the actual bar sits inside a plan outline. **Overrun = finish delay (red + N days); an empty gap on the left = a late start.** Done tasks are gray, and parent (aggregate) rows are thin summary bars, so state reads at a glance. Colors follow **color-universal design (CVD-aware)**
 - **Progress-axis view (EVM-style)** — besides the time-axis Gantt, a **progress view whose axis is completion (0–100%)**, reachable via a tab. It shows **actual (EV), planned (PV), and how far behind** as horizontal bars (the two views are never mixed)
-- **Header summary** — period, effort (person-months), and progress (EVM) stay on screen at all times. Even when ahead-work offsets the overall figure to 0%, a **badge counts the tasks that are individually behind**, so none slip through
+- **Time-axis scale switch** — the Gantt (time tab and structure tab) can compress its horizontal axis across three levels: **day / week / month**. Makes it easier to see a long-running project at a glance
+- **Header summary** — period, effort (person-months), and progress (EVM) stay on screen at all times. Even when ahead-work offsets the overall figure to 0%, a **badge counts the tasks that are individually behind** (deadline overruns and progress slips are counted separately), so none slip through
 - **Holidays and weekends at a glance** — a top-level `holidays` list renders **holidays in red** in the date header and shades **weekend and holiday columns faint pink, full height**. Remaining-business-days excludes both (2026 Japanese holidays ship with the sample data)
+- **Minimal-display toggle** — click the title in the header to hide the logo and version text, leaving just **"WBS"** (click again to restore). Useful when you want the tool to blend in as an in-house utility
+
+### See structure (dependencies and the critical path)
+
+- Add **`_deps`** (an array of predecessor task ids) to a task, and the **Structure tab** highlights the **critical path in orange** — the chain of tasks whose delay would delay the whole plan
+- **Click** a task bar to highlight only its direct and indirect **predecessors and successors** (predecessors get a solid outline, successors a dashed one — no arrows are drawn, keeping the visualization lightweight)
+- References to a nonexistent id or a cyclic dependency are simply **ignored, never crash** (broken-input tolerance is a policy across the whole tool)
+- Ask the AI, "infer task X's dependencies," and it infers predecessors from the description and deliverables and writes them into `_deps`
+
+![structure view](docs/screenshot-structure.en.png)
 
 ### Narrow down
 
 - **Filter bar** — above the left table, four axes sit side by side: **state (to do / in progress / done), delayed-only, owner (multi-select), and period (today / this week / all)**. Values inside one axis combine with OR; axes combine with AND, so you can stack them freely — e.g. "in progress AND delayed AND assigned to me." It is **display-only**: neither `wbs.json` nor the time axis changes. Hiding a row is a blindfold, not a delete
 - **Column collapse** — **+/−** above the headers fold or unfold column groups (qty+hours, progress, status, owner, plan, actual, notes), freeing up room for the Gantt
+- **Task-name column resize** — drag the column boundary to resize the "Task" column (double-click to reset to the default width). Helpful when task names run long
 
 ### Edit
 
-- **Three ways to edit** — in-browser editing (autosave), any text editor, or **AI chat** (`CLAUDE.md` ships with the tool, so Claude Code already understands the data format)
+- **Several ways to edit** — in-browser editing (autosave), any text editor, **AI chat** (`CLAUDE.md` ships with the tool, so Claude Code already understands the data format), plus the **task detail dialog** (click the No. column to edit a single row without leaving display mode)
 - **Reschedule history** — confirming a reschedule via the **↷ button** in edit mode updates the plan and **records the reason** in the same action (`_planLog`). The Gantt shows only the latest change, as a dotted **trail**; clicking a task's **↷N** opens a balloon with the full history and how far it has drifted from the original plan. A plain date-cell edit — a "correction" — is treated separately and leaves no history
 
 ### Foundation
@@ -62,11 +74,15 @@ The latest version's main additions are the **filter bar** (narrow by state, del
 
 ## Working the screen
 
-- **Switch views**: the **Time / Progress tabs** (top right) toggle between the Gantt (time axis) and the progress view (completion)
+- **Switch views**: the **Time / Progress / Structure tabs** (top right) toggle between the Gantt (time axis), the progress view (completion), and the structure view (dependencies)
+- **Time-axis scale**: on the Time and Structure tabs, buttons for **Day / Week / Month** next to the tabs change how much the horizontal axis is compressed
 - **Narrow down**: the **filter bar** above the left table narrows by state, delay, owner, and period. Only the display changes — the data never moves
 - **Collapse rows**: click a project or phase name, or `▼/▶`. The **`▼/▶` in the Task column header** expands or collapses everything (**Ctrl+Z** restores the previous view after a slip)
 - **Collapse columns**: the **+/−** above the headers fold or unfold column groups (qty+hours, progress, status, owner, plan, actual, notes)
+- **Resize a column**: drag the right edge of the "Task" column header (double-click to reset to the default width)
 - **Gantt**: the day column under your mouse is **highlighted**, with its date emphasized in the header. **Hover a bar** to see the exact plan and actual dates
+- **Task details**: **click the No. column** to open a dialog in the center of the screen, where you can review or edit that one row without entering edit mode
+- **Dependency highlight**: on the Structure tab, **click** a task bar to bring up only its predecessors and successors (click again to clear)
 
 ## In-browser editing (optional)
 
@@ -107,6 +123,7 @@ The number-one reason WBS charts die is **the cost of updating them**. This tool
 
 - "Mark the design review as completed today" → sets `actual.end` to today
 - "Push every June task back a week" → a bulk change
+- "Infer task X's dependencies" → predecessors are inferred from the description and deliverables and written into `_deps`
 - "Total workload by owner" → an analysis the viewer itself doesn't offer
 - "Archive everything completed before May" → backup plus cleanup
 
@@ -126,6 +143,7 @@ The bundled [`CLAUDE.md`](CLAUDE.md) ([English: `CLAUDE.en.md`](CLAUDE.en.md)) t
           { "id": "1.1", "name": "Task", "qty": 1, "hours": 16, "assignee": "Owner",
             "plan":   { "start": "2026-07-01", "end": "2026-07-05" },
             "actual": { "start": null, "end": null }, "note": "",
+            "_deps":  ["0.9"],
             "_ai":    { "tokens": 70000, "minutes": 25, "model": "fable-5" },
             "_money": { "outsource": 50000, "currency": "JPY" },
             "_links": ["https://example.com/spec.md"] }
@@ -138,7 +156,7 @@ The bundled [`CLAUDE.md`](CLAUDE.md) ([English: `CLAUDE.en.md`](CLAUDE.en.md)) t
 
 - Tasks nest up to 3 levels. A node with `children` is a summary node; without one, it's a leaf that carries effort
 - `holidays` (optional, top-level) is shared across all projects. A plain string means no name; `{ date, name }` shows the name as a tooltip. **Holidays render red in the date header and shade columns pink alongside weekends**, and are excluded from the remaining-business-days count
-- **Keys starting with `_` are custom keys** you can add freely (`_ai` = AI effort above, `_money` = outsourcing cost, `_links` = reference links — any structure works). The viewer ignores them, and in-browser editing preserves them. A URL you want to click belongs in `note` (auto-linked)
+- **Keys starting with `_` are custom keys** you can add freely, but three are read by the viewer for actual features: **`_deps`** (an array of predecessor task ids, used for critical-path calculation on the Structure tab), **`_progress`** (a manual/AI-assessed progress value from 0–100), and **`_planLog`** (reschedule history). Every other `_` key (`_ai` = AI effort above, `_money` = outsourcing cost, `_links` = reference links) is free-form — the viewer ignores it, and in-browser editing preserves it. A URL you want to click belongs in `note` (auto-linked)
 - The legacy single-project format `{ "project", "milestones", "tasks" }` still reads fine (backward compatible)
 - For exact formulas, operations, and edge-case handling, see [`CLAUDE.en.md`](CLAUDE.en.md) — the single source of truth for the spec
 
