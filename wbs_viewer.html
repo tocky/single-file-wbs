@@ -241,6 +241,29 @@
   #rsForm .rs-btns{display:flex;gap:8px;margin-top:6px}
   #rsForm .rs-ok{font:inherit;background:var(--accent);color:#fff;border:none;border-radius:5px;padding:3px 12px;cursor:pointer}
   #rsForm .rs-cancel{font:inherit;background:#fff;border:1px solid var(--btn-border);border-radius:5px;padding:3px 10px;cursor:pointer}
+  /* タスク詳細ダイアログ：中央モーダル。rsPop/rsForm(z-index:60)より下＝ダイアログ内から↷を押した時にそちらが最前面に出る */
+  .no-clk{cursor:pointer} .no-clk:hover{text-decoration:underline}
+  #detailOverlay{position:fixed;inset:0;z-index:55;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center}
+  #detailModal{background:#fff;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.25);width:520px;max-width:92vw;max-height:86vh;
+    overflow:auto;padding:16px 20px;font-size:13px;color:var(--text)}
+  .dm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+  .dm-title{font-size:15px;font-weight:700}
+  .dm-close{font:inherit;font-size:18px;line-height:1;border:none;background:transparent;cursor:pointer;color:var(--muted);flex:0 0 auto}
+  .dm-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .dm-row label{width:88px;flex:0 0 auto;color:var(--muted);white-space:nowrap}
+  .dm-row>span{flex:1 1 auto;min-width:0}
+  .dm-row input[type="text"],.dm-row input[type="number"]{font:inherit;border:1px solid #c3c9d2;border-radius:4px;padding:2px 6px;width:100%;box-sizing:border-box}
+  .dm-row input[data-field="ps"],.dm-row input[data-field="pe"],.dm-row input[data-field="as"],.dm-row input[data-field="ae"]{width:114px}
+  .dm-daterange{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .dm-daterange .date-wrap{width:auto;flex:0 0 auto}
+  .dm-tilde{color:var(--muted);flex:0 0 auto}
+  .dm-note textarea{width:100%;min-height:70px;font:inherit;resize:vertical;border:1px solid #c3c9d2;border-radius:4px;padding:4px 6px;box-sizing:border-box}
+  .dm-row.dm-actions{flex-wrap:wrap}
+  .dm-actions button{font:inherit;border:1px solid var(--btn-border);background:#f3f6fb;border-radius:5px;padding:2px 8px;cursor:pointer;margin-right:6px;flex:0 0 auto;white-space:nowrap}
+  .dm-donebtn.on{border-color:var(--done-fg);color:var(--done-fg)}
+  .dm-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+  .dm-edit-toggle{font:inherit;background:var(--accent);color:#fff;border:none;border-radius:5px;padding:4px 14px;cursor:pointer}
+  .dm-stat{margin-left:8px;font-size:12px}
   .grow.done .bar.actual{background:#8c98a6}  /* 完了=グレーのバー（青=進行中／グレー=完了 を一目で。状態の区別・色覚に依らない輝度差） */
   .grow.done .bar.over{background:#b07480} .grow.done .delay{color:#b07480}  /* 完了済みの終了遅延=くすんだ赤（確定・過去）。進行中の鮮赤=まだ増える緊急、と区別 */
   /* 親(集約)=細いサマリーバー（予定枠も実績も遅延も薄く）＝形で葉と区別・色は増やさない・CUD安全・全情報も保持 */
@@ -306,6 +329,7 @@
       allTipExpand:"ツリーが全部展開されます ※Ctrl+Z でクリック前の状態に戻ります",
       allTipCollapse:"ツリーが全部折りたたまれます ※Ctrl+Z でクリック前の状態に戻ります",
       colHide:"この列を畳む",colShow:"畳んだ列を開く",colResizeTip:"ドラッグで列幅を調整（ダブルクリックで既定幅に戻す）",
+      detailAggTitle:"集計",detailEnableEdit:"編集する",detailClose:"閉じる",detailNoTip:"クリックで詳細を表示",detailActions:"操作",
       editTitle:"インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します",
       notLoaded:"未読み込み",empty:"「ファイルを開く」または D&D で <b>wbs.json</b> を読み込んでください（Chrome）。",
       colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",tsDay:"日",tsWeek:"週",tsMonth:"月",colAsg:"担当",
@@ -350,6 +374,7 @@
       allTipExpand:"Expands the whole tree (Ctrl+Z restores the view before the click)",
       allTipCollapse:"Collapses the whole tree (Ctrl+Z restores the view before the click)",
       colHide:"Collapse this column",colShow:"Expand collapsed column",colResizeTip:"Drag to resize column (double-click to reset)",
+      detailAggTitle:"Summary",detailEnableEdit:"Edit",detailClose:"Close",detailNoTip:"Click to view details",detailActions:"Actions",
       editTitle:"Inline editing (autosave). When turning ON, re-select wbs.json in the save dialog to grant write permission",
       notLoaded:"No file loaded",empty:"Load <b>wbs.json</b> via \"Open file\" or drag &amp; drop (Chrome).",
       colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",tsDay:"Day",tsWeek:"Week",tsMonth:"Month",colAsg:"Owner",
@@ -394,6 +419,7 @@
   const t=k=>I18N[lang][k];
   let fileHandle=null, lock=false, lastData=null, pendingCenter=true;
   let editMode=false, curProjects=null, refreshTimer=null;                 // 編集モード関連
+  let detailPath=null, detailNodeId=null, detailWritable=false, detailEditing=false;  // タスク詳細ダイアログ（editModeとは独立の第2編集経路）
   let activeView="time";if(lsGet("wbsView")==="progress")activeView="progress";  // 右ペイン:時間(ガント)/進捗(完了率)。既定=時間
   let timeScale="day";{const v=lsGet("wbsTimeScale");if(v==="week"||v==="month")timeScale=v;}  // 時間ビューの軸スケール:日/週/月。既定=日
   let pendingScaleCenter=false, lastRangeStart=null, lastDayPx=null;       // 日/週切替時だけ「表示中央の日付」を保ってスクロール復元（#pendingCenterと同型のワンショット）
@@ -520,6 +546,28 @@
     return slip>0
       ? `<span class="s-d">${slip}</span><span class="s-x"> / </span><span class="s-a">${ev}</span><span class="s-x"> / </span><span class="s-p">${pv}</span>`
       : `<span class="s-a">${ev}</span>`;
+  }
+  // 編集入力欄（型でテンプレ分岐）。テーブルのインライン編集・詳細ダイアログ両方から使う共通ヘルパー
+  function inp(path,f,val,type){
+    return type==="date"
+      ? `<span class="date-wrap"><input data-path="${path}" data-field="${f}" type="text" placeholder="MM-DD" value="${esc(val)}">`
+        +`<input type="date" class="cal-proxy" tabindex="-1" aria-hidden="true">`
+        +`<button type="button" class="cal-btn" data-cal title="${esc(t("calTip"))}">${ICN.cal}</button></span>`
+      : `<input data-path="${path}" data-field="${f}" type="${type}"${type==="number"?' step="any"':""} value="${esc(val)}">`;
+  }
+  // 完了トグル：チェックで実績終了=今日（未着手なら着手も今日）・解除でnull。テーブル・詳細ダイアログ双方のclickハンドラから呼ぶ共通処理
+  function applyDoneToggle(node){
+    const a=node.actual=node.actual&&typeof node.actual==="object"?node.actual:{};
+    if(a.end)a.end=null; else{a.end=todayStr(); if(!a.start)a.start=todayStr();}
+  }
+  // 進捗ステッパー ±10%（表示値を基点に増減）。テーブル・詳細ダイアログ双方のclickハンドラから呼ぶ共通処理
+  function applyProgStep(node,inc){
+    const cur=quantProg(node._progress);
+    const base=(cur!=null)?cur:Math.round(((node._calc&&node._calc.progress)||0)/10)*10;
+    const tgt=clamp(base+(inc?10:-10),0,100);
+    node._progress=tgt; node._progressAt=new Date().toISOString(); node._progressBy="manual";
+    if(tgt>=10){const a=node.actual=node.actual&&typeof node.actual==="object"?node.actual:{}; if(!a.start)a.start=todayStr();}
+    // 0%に戻しても着手日(actual.start)は残す（決定A・日付の無言削除はしない）
   }
   const isOverdue=(c,today)=>!!(c.planEnd&&!c.allDone&&today>c.planEnd);   // 予定終了を過ぎても未完了＝締切超過（赤）
   function progBarRow(c,thin,done,cls){   // 進捗軸の1行：青=実績(EV)／赤=予定への不足分(slip・右端がPV)。親=細いサマリー。clsは行背景(prow/lvl0/lvl1)
@@ -745,14 +793,9 @@
           const P=esc(r.path);
           const rlog=leaf?planLogOf(n):[];                                    // リスケ履歴(#96・リーフのみ)
           const x={leaf,inProg,path:P};
-          const inp=(f,val,type)=>type==="date"                                // 編集入力欄（型でテンプレ分岐）
-            ?`<span class="date-wrap"><input data-path="${P}" data-field="${f}" type="text" placeholder="MM-DD" value="${esc(val)}">`
-              +`<input type="date" class="cal-proxy" tabindex="-1" aria-hidden="true">`
-              +`<button type="button" class="cal-btn" data-cal title="${esc(t("calTip"))}">${ICN.cal}</button></span>`
-            :`<input data-path="${P}" data-field="${f}" type="${type}"${type==="number"?' step="any"':""} value="${esc(val)}">`;
           let info="";
           eCols.forEach(col=>{let v="";
-            if(col.key==="no")v=editMode?inp("id",n.id,"text"):esc(n.id);
+            if(col.key==="no")v=editMode?inp(P,"id",n.id,"text"):`<span class="clk no-clk" data-detail-open="${P}" title="${esc(t("detailNoTip"))}">${esc(n.id)}</span>`;
             else if(col.key==="name"){
               const bdg=rlog.length?`<button class="rsbdg" data-rslog="${P}" title="${esc(t("rsTip"))}">↷${rlog.length}</button>`:"";  // ↷N=修正回数（クリックで履歴の吹き出し・#96）
               if(editMode){
@@ -777,7 +820,7 @@
             }
             else{                                                              // メタデータ駆動：表示=view・編集=field/get（リーフのみ）
               v=col.view?col.view(c,n,x):"";
-              if(editMode&&leaf&&col.field)v=inp(col.field,col.get(c,n),col.edit);
+              if(editMode&&leaf&&col.field)v=inp(P,col.field,col.get(c,n),col.edit);
             }
             let tip="";
             if(col.key==="name"&&!editMode)tip=` title="${esc(n.name)}"`;
@@ -950,6 +993,7 @@
     injectDOM();
     updateSummaryAndScroll();
     lastRangeStart=rangeStart; lastDayPx=dayPx; pendingScaleCenter=false;   // 次回の日/週切替スクロール保持のため記憶
+    renderDetail();                                                        // 詳細ダイアログが開いていれば最新の_calc（buildRows済み）で作り直す（開いていなければ内部で何もしない）
   }
   function applyData(data,isNew){
     lastData=data;
@@ -1102,7 +1146,7 @@
     clearTimeout(refreshTimer);
     refreshTimer=setTimeout(function tick(){
       const a=document.activeElement;
-      if(a&&a.tagName==="INPUT"&&a.closest&&a.closest("#leftRows")){refreshTimer=setTimeout(tick,FOCUS_POLL_MS);return;}
+      if(a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")&&a.closest&&(a.closest("#leftRows")||a.closest("#detailOverlay"))){refreshTimer=setTimeout(tick,FOCUS_POLL_MS);return;}
       if(lastData)render(lastData);
     },RENDER_DEFER_MS);
   }
@@ -1212,18 +1256,9 @@
       }
       collapsed.delete("T|"+r.proj.name+"|"+node.id);                         // 折りたたみ中でも追加が見えるよう展開
     }
-    else if(act==="done"){                                                   // 完了トグル：チェックで実績終了=今日（未着手なら着手も今日）・解除でnull
-      const a=r.node.actual=r.node.actual&&typeof r.node.actual==="object"?r.node.actual:{};
-      if(a.end)a.end=null; else{a.end=todayStr(); if(!a.start)a.start=todayStr();}
-    }
-    else if(act==="prog-inc"||act==="prog-dec"){                              // 進捗ステッパー ±10%（表示値を基点に増減）
-      const cur=quantProg(r.node._progress);
-      const base=(cur!=null)?cur:Math.round(((r.node._calc&&r.node._calc.progress)||0)/10)*10;
-      const tgt=clamp(base+(act==="prog-inc"?10:-10),0,100);
-      r.node._progress=tgt; r.node._progressAt=new Date().toISOString(); r.node._progressBy="manual";
-      if(tgt>=10){const a=r.node.actual=r.node.actual&&typeof r.node.actual==="object"?r.node.actual:{}; if(!a.start)a.start=todayStr();}
-      // 0%に戻しても着手日(actual.start)は残す（決定A・日付の無言削除はしない）
-    }else return;
+    else if(act==="done")applyDoneToggle(r.node);
+    else if(act==="prog-inc"||act==="prog-dec")applyProgStep(r.node,act==="prog-inc");
+    else return;
     queueSave(); render(lastData);                                           // 変異→即render（stale path防止 #5/#8）
   });
   $("leftRows").addEventListener("wheel",e=>{
@@ -1433,6 +1468,130 @@
   }
   $("leftRows").addEventListener("click",e=>{const b=e.target.closest(".rsbdg");if(b)toggleRsPop(b.getAttribute("data-rslog"),b);});
   $("rightBody").addEventListener("click",e=>{const b=e.target.closest("[data-rslog]");if(b)toggleRsPop(b.getAttribute("data-rslog"),b);});
+
+  // ===== タスク詳細ダイアログ：表示モードでNo.列クリック→中央モーダルで閲覧・編集（editModeとは独立の第2経路） =====
+  function detailRow(label,html){return `<div class="dm-row"><label>${esc(label)}</label><span>${html}</span></div>`;}
+  function buildDetailBody(pr){
+    const n=pr.node,c=n._calc||{},leaf=n._leaf,P=esc(detailPath);
+    const inProg=leaf&&c.actualStart&&!c.actualEnd;
+    let h="";
+    h+=detailRow(t("colNo"), leaf&&detailEditing?inp(P,"id",n.id,"text"):esc(n.id));
+    h+=detailRow(t("colTask"), detailEditing?inp(P,"name",n.name,"text"):esc(n.name));
+    if(leaf){
+      h+=detailRow(t("colQty"), detailEditing?inp(P,"qty",n.qty,"number"):esc(n.qty));
+      h+=detailRow(t("colHrs"), detailEditing?inp(P,"hours",n.hours,"number"):esc(n.hours));
+    }
+    h+=detailRow(t("colWork"), c.load?esc(fmtLoad(c.load)):"");
+    h+=detailRow(t("colProg"), progStep(c.progress,detailEditing&&leaf,P)+` <span class="dm-stat">${statusCell(c)}</span>`);
+    if(leaf)h+=detailRow(t("colAsg"), detailEditing?inp(P,"assignee",n.assignee||"","text"):esc(n.assignee||""));
+    h+=detailRow(t("grpPlan"), `<span class="dm-daterange">`
+      +(detailEditing&&leaf?inp(P,"ps",shortDate(c.planStart),"date"):esc(mdSlash(c.planStart)))
+      +`<span class="dm-tilde">〜</span>`+(detailEditing&&leaf?inp(P,"pe",shortDate(c.planEnd),"date"):esc(mdSlash(c.planEnd)))+`</span>`);
+    h+=detailRow(t("grpActual"), `<span class="dm-daterange">`
+      +(detailEditing&&leaf?inp(P,"as",shortDate(c.actualStart),"date"):esc(c.actualStart?mdSlash(c.actualStart):"—"))
+      +`<span class="dm-tilde">〜</span>`+(detailEditing&&leaf?inp(P,"ae",shortDate(c.actualEnd),"date"):esc(c.actualEnd?mdSlash(c.actualEnd):(inProg?t("active"):"—")))+`</span>`);
+    if(leaf){
+      const rlog=planLogOf(n), bdg=rlog.length?`<button class="rsbdg" data-rslog="${P}" title="${esc(t("rsTip"))}">↷${rlog.length}</button>`:"";
+      const done=c.allDone;
+      const actions=detailEditing
+        ?`<button class="dm-donebtn${done?" on":""}" data-act="done" data-path="${P}" title="${esc(t("doneTip"))}">${done?"✓ ":""}${esc(t("fDone"))}</button>`
+          +`<button data-act="resched" data-path="${P}" title="${esc(t("rsBtnTip"))}">↷ ${esc(t("rsForm"))}</button>${bdg}`
+        :(done?`<span class="done-mark">✓ ${esc(t("fDone"))}</span> ${bdg}`:bdg);
+      if(actions)h+=`<div class="dm-row dm-actions"><label>${esc(t("detailActions"))}</label><span>${actions}</span></div>`;
+      h+=`<div class="dm-row dm-note"><label>${esc(t("colNote"))}</label>`
+        +(detailEditing?`<textarea data-path="${P}" data-field="note">${esc(n.note||"")}</textarea>`:linkify(n.note||""))+`</div>`;
+    }
+    return h;
+  }
+  function renderDetail(){
+    const old=$("detailOverlay"); if(old)old.remove();
+    if(!detailPath)return;
+    const pr=resolvePath(detailPath);
+    if(!pr.node||pr.node.id!==detailNodeId){detailPath=null;detailNodeId=null;detailEditing=false;return;}  // 外部変更でpathがズレたら自動close（保護）
+    const leaf=pr.node._leaf;
+    const title=leaf?esc(pr.node.name):`${esc(pr.node.name)}（${esc(t("detailAggTitle"))}）`;
+    const editBtn=detailEditing?"":`<button type="button" class="dm-edit-toggle" data-detail-act="enableEdit">${esc(t("detailEnableEdit"))}</button>`;
+    const html=`<div id="detailModal" role="dialog" aria-modal="true">`
+      +`<div class="dm-head"><span class="dm-title">${title}</span><button type="button" class="dm-close" data-detail-act="close" title="${esc(t("detailClose"))}">×</button></div>`
+      +`<div class="dm-body">${buildDetailBody(pr)}</div>`
+      +`<div class="dm-foot">${editBtn}</div></div>`;
+    const el=document.createElement("div"); el.id="detailOverlay"; el.innerHTML=html;
+    el.addEventListener("click",e=>{if(e.target.id==="detailOverlay")closeDetail();});
+    document.body.appendChild(el);
+  }
+  function openDetail(path){
+    const pr=resolvePath(path); if(!pr.node)return;
+    detailPath=path; detailNodeId=pr.node.id; detailEditing=false;
+    renderDetail();
+  }
+  function closeDetail(){
+    const el=$("detailOverlay"); if(el)el.remove();
+    detailPath=null; detailNodeId=null; detailEditing=false;
+  }
+  async function enableDetailEdit(){
+    if(!detailWritable){
+      if(!fileHandle||!fileHandle.createWritable){alert(t("needHandle"));return;}
+      if(lastData&&!Array.isArray(lastData.projects)){                     // 旧フォーマット→変換（editModeと同じ確認フロー）
+        if(!confirm(t("legacyConvert")))return;
+        lastData={projects:normalizeProjects(lastData)};
+        curProjects=lastData.projects;
+      }
+      if(!await ensureWritable())return;
+      detailWritable=true;
+    }
+    detailEditing=true;
+    renderDetail();
+  }
+  $("leftRows").addEventListener("click",e=>{
+    const el=e.target.closest("[data-detail-open]");
+    if(el)openDetail(el.getAttribute("data-detail-open"));
+  });
+  document.addEventListener("change",e=>{
+    const el=e.target; if(!el.closest||!el.closest("#detailOverlay"))return;
+    if(el.tagName!=="INPUT"&&el.tagName!=="TEXTAREA")return;
+    if(el.classList.contains("cal-proxy")){                                 // 📅の選択/クリアをテキスト入力へ反映（テーブル側と同じ挙動）
+      const txt=el.closest(".date-wrap").querySelector("input[data-field]");
+      txt.value=el.value; txt.dispatchEvent(new Event("change",{bubbles:true}));
+      return;
+    }
+    if(!el.hasAttribute("data-field"))return;
+    const pr=resolvePath(el.getAttribute("data-path")); if(!pr.node)return;
+    applyField(pr.node,el.getAttribute("data-field"),el.value);
+    queueSave(); deferRender();
+  });
+  document.addEventListener("click",e=>{
+    if(!e.target.closest("#detailOverlay"))return;
+    const cb=e.target.closest("button[data-cal]");                         // 📅→ネイティブカレンダー（テーブル側と同じ挙動）
+    if(cb){
+      const w=cb.closest(".date-wrap"),txt=w.querySelector("input[data-field]"),px=w.querySelector(".cal-proxy");
+      px.value=isDate(txt.value)?txt.value:(expandDate(txt.value)||"");
+      try{px.showPicker();}catch(_){}
+      return;
+    }
+    const da=e.target.closest("[data-detail-act]");
+    if(da){
+      const act=da.getAttribute("data-detail-act");
+      if(act==="close")closeDetail(); else if(act==="enableEdit")enableDetailEdit();
+      return;
+    }
+    const rb=e.target.closest(".rsbdg");
+    if(rb){toggleRsPop(rb.getAttribute("data-rslog"),rb);return;}
+    const b=e.target.closest("button[data-act]"); if(!b)return;
+    const act=b.getAttribute("data-act"), path=b.getAttribute("data-path");
+    if(act==="resched"){openRsForm(path,b);return;}
+    const pr=resolvePath(path); if(!pr.node)return;
+    if(act==="done")applyDoneToggle(pr.node);
+    else if(act==="prog-inc")applyProgStep(pr.node,true);
+    else if(act==="prog-dec")applyProgStep(pr.node,false);
+    else return;
+    queueSave(); render(lastData);                                          // テーブルも即時同期（editModeはfalseのまま表示モードで再描画されるだけ）
+  });
+  document.addEventListener("keydown",e=>{
+    if(e.key!=="Escape"||!detailPath)return;
+    if($("rsPop")||$("rsForm")){closeRsUI();return;}                        // rsPop/rsFormが開いていればそちらを優先して閉じる（1段階Esc）
+    closeDetail();
+  });
+
   // ===== 言語切替（既定:日本語。選択は localStorage に記憶） =====
   function applyLang(){
     document.documentElement.lang=lang;
