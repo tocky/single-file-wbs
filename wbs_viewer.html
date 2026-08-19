@@ -226,7 +226,7 @@
   .bar.struct{top:8px;height:14px;border-radius:3px;z-index:1}
   .bar.struct.crit{background:#e69f00}
   .bar.struct.dim{background:#d7dbe0}
-  .grow.parent .bar.struct.thin{top:11px;height:8px}         /* 親=細いサマリー（形で葉と区別・色は増やさない・既存の.grow.parent .bar.planと同じ考え方） */
+  .grow.parent .bar.struct.thin,.grow.prow .bar.struct.thin{top:11px;height:8px}  /* 親/プロジェクト行=細いサマリー（形で葉と区別・色は増やさない・既存の.grow.parent .bar.planと同じ考え方） */
   #cpinfo{margin-left:auto;margin-right:12px;align-self:center;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;cursor:help}  /* 幅が足りない時は省略記号（詳細はtitle）。タブ/軸スケールは潰さない */
   /* リスケ履歴(#96)＝直近の修正1本のトレイル。下レーン=開始の変化・上レーン=終了の変化（出る場所で修正種別が読める） */
   .rs-seg{position:absolute;top:26px;border-top:2px dotted #9aa2ad;z-index:1}
@@ -630,14 +630,14 @@
     allLeaves.forEach(n=>{
       const id=String(n.id);
       const raw=Array.isArray(n._deps)?n._deps:[];                          // 非配列は依存無しとして扱う
-      const valid=raw.filter(d=>typeof d==="string"&&d!==id&&byId.has(d));  // 自己参照・存在しないid・非文字列は除外
+      const valid=[...new Set(raw.filter(d=>typeof d==="string"&&d!==id&&byId.has(d)))];  // 自己参照・存在しないid・非文字列は除外・重複は依存として1件扱い
       preds.set(id,valid);
       valid.forEach(d=>{succs.get(d).push(id); indeg.set(id,indeg.get(id)+1);});
     });
-    const order=[], queue=[...indeg.keys()].filter(id=>indeg.get(id)===0);  // Kahnのトポロジカルソート
+    const order=[], queue=[...indeg.keys()].filter(id=>indeg.get(id)===0);  // Kahnのトポロジカルソート（queueはインデックスで消費・shift()のO(n)詰め直しを回避）
     const indegWork=new Map(indeg);
-    while(queue.length){
-      const id=queue.shift(); order.push(id);
+    for(let qi=0;qi<queue.length;qi++){
+      const id=queue[qi]; order.push(id);
       succs.get(id).forEach(s=>{const d=indegWork.get(s)-1; indegWork.set(s,d); if(d===0)queue.push(s);});
     }
     const orderSet=new Set(order);
@@ -664,6 +664,16 @@
     const criticalIds=new Set();
     if(hasEdge&&bestId!=null){let cur=bestId; while(cur!=null){criticalIds.add(cur); cur=from.get(cur);}}
     return {criticalIds, criticalLen:hasEdge?bestLen:0};
+  }
+  // 配下に1つでもcriticalなリーフがあるかを各ノードに1回のポストオーダー走査でメモ化（n._crit）。
+  // 行ごとにleavesOf()で部分木を再走査するとネストで重複計算になるため、木を1回だけ辿ってO(n)にする
+  function markCritical(tasks,criticalIds){
+    return (tasks||[]).map(n=>{
+      const any=n.children&&n.children.length
+        ? markCritical(n.children,criticalIds).some(Boolean)
+        : criticalIds.has(String(n.id));
+      n._crit=any; return any;
+    });
   }
 
   function render(data){
@@ -1062,8 +1072,9 @@
         save:saveMsg?"・ "+ICN.save+" "+esc(saveMsg):""});
       const rEl=$("right"), lEl=$("left");
       const maxLeft=Math.max(0,ganttW-rEl.clientWidth);
-      // 初回/新規読込は本日へセンタリング、日/週切替直後は切替前に画面中央だった日付を再センタリング。それ以外はスクロール位置(px)を保持。進捗ビューは横スクロール無し（0固定）
-      rEl.scrollLeft=activeView!=="time"?0
+      // 初回/新規読込は本日へセンタリング、日/週切替直後は切替前に画面中央だった日付を再センタリング。それ以外はスクロール位置(px)を保持。
+      // 進捗ビューは横スクロール無し（0固定）。構造ビューは時間ビューと同じganttW幅の横スクロール前提なので同じ扱い（#66）
+      rEl.scrollLeft=activeView==="progress"?0
         :pendingCenter?clamp(xToday-rEl.clientWidth/2,0,maxLeft)
         :scaleCenterDate?clamp(centerOf(scaleCenterDate)-rEl.clientWidth/2,0,maxLeft)
         :Math.min(scrollKeep.left,maxLeft);
@@ -1076,10 +1087,11 @@
     const allLeaves=[]; projects.forEach(p=>allLeaves.push(...leavesOf(p.tasks)));
     const totalLoad=allLeaves.reduce((s,n)=>s+n._calc.load,0);
     const {criticalIds, criticalLen} = computeCriticalPath(allLeaves);          // 依存関係/クリティカルパス（#66・構造タブ用）
-    rows.forEach(r=>{                                                          // 配下に1つでもcriticalなリーフがあれば親/PJ行にも伝播（折りたたみ時も見える化）
+    projects.forEach(p=>markCritical(p.tasks,criticalIds));                     // 各ノードに1回だけ後順走査でn._critをメモ化（O(n)）
+    rows.forEach(r=>{                                                          // 配下に1つでもcriticalなリーフがあれば親/PJ行にも伝播（折りたたみ時も見える化）・n._critはO(1)参照
       r.critical = r.kind==="proj"
-        ? leavesOf(projects[r.pi].tasks).some(n=>criticalIds.has(String(n.id)))
-        : leavesOf([r.node]).some(n=>criticalIds.has(String(n.id)));
+        ? (projects[r.pi].tasks||[]).some(n=>n._crit)
+        : !!r.node._crit;
     });
     const {rangeStart,rangeEnd,totalDays,ganttW,xOf,centerOf,barW,xToday,dayPx} = buildRange();
     const eCols=effCols();
@@ -1231,7 +1243,7 @@
          !confirm(t("extChange"))){
         setSaveMsg(t("savePending"));return;
       }
-      const json=JSON.stringify(lastData,(k,v)=>(k==="_calc"||k==="_leaf")?undefined:v,2);  // 内部派生値のみ除外
+      const json=JSON.stringify(lastData,(k,v)=>(k==="_calc"||k==="_leaf"||k==="_crit")?undefined:v,2);  // 内部派生値のみ除外
       const w=await fileHandle.createWritable(); await w.write(json); await w.close();
       fileMtime=(await fileHandle.getFile()).lastModified;
       setSaveMsg(t("savedAt")+new Date().toLocaleTimeString(t("locale")));
@@ -1338,7 +1350,7 @@
         const pp=b.getAttribute("data-path").split("/");
         if(pp.length>=3){const pr=resolvePath(pp.slice(0,-1).join("/"));
           if(pr.node){delete pr.node.children;
-            for(const k in removed)if(k!=="id"&&k!=="children"&&k!=="_calc"&&k!=="_leaf")pr.node[k]=removed[k];}}
+            for(const k in removed)if(k!=="id"&&k!=="children"&&k!=="_calc"&&k!=="_leaf"&&k!=="_crit")pr.node[k]=removed[k];}}
       }
     }
     else if(act==="add"){
@@ -1351,7 +1363,7 @@
         node.children.push(newLeaf(mintId(node.children,String(node.id)+".")));
       }else{                                                                  // リーフ→集計化：自分の値を子1へ移す（案A）。総工数・進捗は不変
         const child={id:String(node.id)+".1",name:node.name};
-        for(const k in node)if(k!=="id"&&k!=="name"&&k!=="children"&&k!=="_calc"&&k!=="_leaf")child[k]=node[k];
+        for(const k in node)if(k!=="id"&&k!=="name"&&k!=="children"&&k!=="_calc"&&k!=="_leaf"&&k!=="_crit")child[k]=node[k];
         Object.keys(node).forEach(k=>{if(k!=="id"&&k!=="name")delete node[k];});
         node.children=[child];
       }
