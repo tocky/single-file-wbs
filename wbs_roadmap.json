@@ -1433,6 +1433,28 @@
               "note": "#96：https://github.com/piguo45/single-file-wbs/issues/96 遅延で後続を後ろ倒した経緯を残す。_planLog（at/from/to/reason・先頭=当初）を_キーで記録（事実記録＝_progress/_aiと同思想・round-trip保持）。まずデータ規約のみ＝ビューア改修ゼロで運用可、後で表示(ホバー履歴/当初ゴーストバー)。#66依存の下地"
             }
           ]
+        },
+        {
+          "id": "7",
+          "name": "v1.6.0: 期間列追加",
+          "children": [
+            {
+              "id": "7.1",
+              "name": "期間（営業日）列の追加",
+              "qty": 1,
+              "hours": 3,
+              "assignee": "tocky",
+              "plan": {
+                "start": "2026-08-20",
+                "end": "2026-08-20"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "#15：https://github.com/tocky/single-file-wbs/issues/15 工数（人日）とは別軸で期間（営業日）を可視化。単位=営業日(bizDays()再利用・祝日考慮)、予定/実績の両方、工数列の隣に新規列。親ノードは配下リーフの最小start〜最大endのスパン（工数=合計と一致しないことが並行作業の可視化になる）。wbs.jsonへの新規フィールド追加なし（ADR-0003準拠・派生値のみ）"
+            }
+          ]
         }
       ]
     }
