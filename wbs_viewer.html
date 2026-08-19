@@ -181,7 +181,7 @@
   #rtabs{position:sticky;top:0;left:0;z-index:6;height:var(--tab-h);display:flex;align-items:flex-end;gap:3px;padding-left:8px;background:#fff}
   .rtab{padding:2px 16px 3px;font-size:12px;color:#8b94a3;background:#eceef2;border:1px solid #d4dae3;border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;line-height:1.3} /* 非選択=灰で沈める */
   .rtab.on{background:#fdf2cc;color:var(--text);font-weight:600;border-color:#ead9a0;box-shadow:inset 0 2px 0 #e0a82e} /* 選択=淡クリーム+アンバー上線（データの青/赤/灰と被らないUI専用色） */
-  #rtabs .tscale{display:inline-flex;align-self:center;margin-left:8px;border:1px solid var(--btn-border);border-radius:11px;overflow:hidden}  /* 時間ビューの軸スケール(日/週)。時間タブ選択時のみ表示・見た目は期間フィルタ(#94)の.seg-btnを流用 */
+  #rtabs .tscale{display:inline-flex;align-self:center;margin-left:8px;border:1px solid var(--btn-border);border-radius:11px;overflow:hidden}  /* 時間ビューの軸スケール(日/週/月)。時間タブ選択時のみ表示・見た目は期間フィルタ(#94)の.seg-btnを流用 */
   #leftHead{top:var(--tab-h);border-right:2px solid var(--border)}
   #rightHead{top:var(--tab-h)}
   #rightHead.phead{height:var(--header-h)}
@@ -280,6 +280,7 @@
   const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){}};               // localStorage 書き込み
   const DAY_W=22, ROW_H=30, DAY_MS=86400000;
   const WEEK_COL_W=70;   // 週表示：週1列の幅目安(px)。1日あたり=WEEK_COL_W/7≈10pxに圧縮（日精度は保ったまま軸をズームアウト）
+  const MONTH_DAY_PX=2;  // 月表示：1日あたりpx。月の日数(28〜31)×これ＝月セル幅（丸め込みなし・長期プロジェクトの俯瞰用にさらに圧縮）
   const NAME_W_DEFAULT=200, NAME_W_MIN=100, NAME_W_MAX=560;  // 作業項目列の幅調整（ドラッグ）の既定/下限/上限
   const SAVE_DEBOUNCE_MS=400, RENDER_DEFER_MS=350, FOCUS_POLL_MS=400;  // 自動保存と遅延再描画の間隔
   const SAVE_RETRY_DELAY_MS=250;  // InvalidStateError（同期/AVの横入り）時に1拍おいて1回だけ再試行する間隔
@@ -297,6 +298,7 @@
   };
   // マイルストーンの選べる色（GUIプリセット）。Okabe-Ito由来でCUD安全・実績(青)/遅延(赤)と被らない5色。JSON/AIは引き続き任意#hex可
   const MS_COLORS=["#cc79a7","#e69f00","#009e73","#d55e00","#56b4e9"];
+  const EN_MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];  // 月表示(en)のymラベル/月セルラベルで共用
   // ===== i18n（UI文言の単一ソース。データ(wbs.json)は翻訳しない） =====
   const I18N={
     ja:{
@@ -306,7 +308,7 @@
       colHide:"この列を畳む",colShow:"畳んだ列を開く",colResizeTip:"ドラッグで列幅を調整（ダブルクリックで既定幅に戻す）",
       editTitle:"インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します",
       notLoaded:"未読み込み",empty:"「ファイルを開く」または D&D で <b>wbs.json</b> を読み込んでください（Chrome）。",
-      colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",tsDay:"日",tsWeek:"週",colAsg:"担当",
+      colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",tsDay:"日",tsWeek:"週",tsMonth:"月",colAsg:"担当",
       colStart:"開始",colEnd:"終了",colNote:"備考",grpPlan:"予定",grpActual:"実績",
       fBar:"絞り込み",fLabel:"状態",fTodo:"未着手",fWip:"進行中",fDone:"完了",fTip:"状態で表示/非表示（表示専用・データは変えません）。押下＝表示中",
       fDelay:"遅延のみ",fDelayTip:"遅れているタスクだけ表示（進捗遅れ or 期限超過）。状態など他の絞り込みと重ねて効く（表示専用）",
@@ -324,6 +326,7 @@
       startDelayTip:n=>`着手遅れ +${n}日`, endDelayTip:(n,act)=>`終了遅延 +${n}日${act?"・進行中":""}`,
       doneTip:"完了/未完了を切替（チェックで実績終了＝今日。未着手なら着手も今日）",
       ym:(y,m)=>`${y}年${m}月`,
+      yr:y=>`${y}年`,mo:m=>`${m}月`,   // 月表示の年セグメント/月セルラベル
       stat:(d)=>`<div class="mrows">`+`<div class="mrow" title="最早開始 - 最遅終了 ／ 残り＝本日→終了の営業日数（土日・祝日(holidays)を除外 #75）"><span class="mk">期間：</span><span class="mv">${esc(mdSlash(d.ps))} - ${esc(mdSlash(d.pe))}</span><span class="msub">（残り：${d.biz}日）</span></div>`+`<div class="mrow" title="予定合計(人月)＝Σ(数量×時間÷8)÷20 ／ 残り＝予定−実績(EV)"><span class="mk">工数：</span><span class="mv">${d.planPM}人月</span><span class="msub">（残り：${d.restPM}人月）</span></div>`+`<div class="mrow" title="実際%（出来高EV/総） ／ 予定%（あるべきPV/総）｜ 遅れ%（予定−実際）"><span class="mk">進捗：</span><span class="mv"><b class="mev">${d.prog}%</b></span><span class="msub">（予定：${d.plan}% ｜ 遅れ：<span class="mdl">${d.delay}%</span>）</span></div>`+`${(d.due||d.slip)?`<div class="mrow mdrow" title="遅れているタスク数。全体の遅れ%は前倒し分で相殺され0%でも、個別に遅れている件数（状況列の赤で詳細）"><span class="mk">遅延：</span><span class="mv2">${d.due?`<span class="dbadge" title="締切超過＝本日>予定終了かつ未完了">⚠ 期限${d.due}件</span>`:""}${d.slip?`<span class="dbadge" title="出来高遅れ＝予定(PV)>実績(EV)">⚠ 進捗${d.slip}件</span>`:""}</span></div>`:""}`+`</div>`+`<div class="mstat"><span title="開いているファイル">${ICN.file} ${esc(d.fname)}</span> ・ <span title="プロジェクト数">${d.pc}P</span> ・ <span title="本日（進捗・イナズマ線の基準日）">${ICN.cal} ${esc(mdSlash(d.today))}</span> ・ <span title="最後に更新（読込）した時刻">${ICN.refresh} ${esc(d.upd)}</span><span id="saveMsg" title="最後に保存した時刻（自動保存）">${d.save}</span></div>`,
       confirmDel:name=>`「${name}」を削除します。よろしいですか？（配下も削除）`,
       fileLabel:(name,size)=>`${name}・${size} byte`,
@@ -349,7 +352,7 @@
       colHide:"Collapse this column",colShow:"Expand collapsed column",colResizeTip:"Drag to resize column (double-click to reset)",
       editTitle:"Inline editing (autosave). When turning ON, re-select wbs.json in the save dialog to grant write permission",
       notLoaded:"No file loaded",empty:"Load <b>wbs.json</b> via \"Open file\" or drag &amp; drop (Chrome).",
-      colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",tsDay:"Day",tsWeek:"Week",colAsg:"Owner",
+      colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",tsDay:"Day",tsWeek:"Week",tsMonth:"Month",colAsg:"Owner",
       colStart:"Start",colEnd:"End",colNote:"Notes",grpPlan:"Plan",grpActual:"Actual",
       fBar:"Filter",fLabel:"State",fTodo:"To do",fWip:"In progress",fDone:"Done",fTip:"Show/hide by state (display only — data is never changed). Pressed = shown",
       fDelay:"Delayed only",fDelayTip:"Show only delayed tasks (behind schedule or past due). Combines with the other filters (display only)",
@@ -366,7 +369,8 @@
       calTip:"Pick a date",addMs:"+MS",addMsTip:"Add a milestone",msLabelPh:"name",milestone:"Milestone",
       startDelayTip:n=>`Start delay +${n}d`, endDelayTip:(n,act)=>`Finish delay +${n}d${act?" (active)":""}`,
       doneTip:"Toggle done (check = actual end today; also start if not yet started)",
-      ym:(y,m)=>`${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${y}`,
+      ym:(y,m)=>`${EN_MONTHS[m-1]} ${y}`,
+      yr:y=>`${y}`,mo:m=>EN_MONTHS[m-1],   // 月表示の年セグメント/月セルラベル
       stat:(d)=>`<div class="mrows">`+`<div class="mrow" title="Earliest start - latest end / Remaining = business days from today to end (excl. weekends & holidays #75)"><span class="mk">Period: </span><span class="mv">${esc(mdSlash(d.ps))} - ${esc(mdSlash(d.pe))}</span><span class="msub"> (left: ${d.biz}d)</span></div>`+`<div class="mrow" title="Planned total (person-months) / Remaining = planned - actual(EV)"><span class="mk">Effort: </span><span class="mv">${d.planPM}pm</span><span class="msub"> (left: ${d.restPM}pm)</span></div>`+`<div class="mrow" title="Actual% (EV/total) / Planned% (PV/total) | Behind% (plan-actual)"><span class="mk">Progress: </span><span class="mv"><b class="mev">${d.prog}%</b></span><span class="msub"> (plan: ${d.plan}% | behind: <span class="mdl">${d.delay}%</span>)</span></div>`+`${(d.due||d.slip)?`<div class="mrow mdrow" title="Tasks behind schedule. Even when the overall behind% is 0% (ahead-work offsets it), this many items are individually behind (see the red Status column)"><span class="mk">Behind: </span><span class="mv2">${d.due?`<span class="dbadge" title="Overdue = past planned end & not done">⚠ ${d.due} late</span>`:""}${d.slip?`<span class="dbadge" title="Behind on value = plan(PV) > actual(EV)">⚠ ${d.slip} EV</span>`:""}</span></div>`:""}`+`</div>`+`<div class="mstat"><span title="Open file">${ICN.file} ${esc(d.fname)}</span> ・ <span title="Projects">${d.pc}P</span> ・ <span title="Today (reference date)">${ICN.cal} ${esc(mdSlash(d.today))}</span> ・ <span title="Last refreshed">${ICN.refresh} ${esc(d.upd)}</span><span id="saveMsg" title="Last saved (autosave)">${d.save}</span></div>`,
       confirmDel:name=>`Delete "${name}"? (children will also be deleted)`,
       fileLabel:(name,size)=>`${name}, ${size} bytes`,
@@ -391,7 +395,7 @@
   let fileHandle=null, lock=false, lastData=null, pendingCenter=true;
   let editMode=false, curProjects=null, refreshTimer=null;                 // 編集モード関連
   let activeView="time";if(lsGet("wbsView")==="progress")activeView="progress";  // 右ペイン:時間(ガント)/進捗(完了率)。既定=時間
-  let timeScale="day";if(lsGet("wbsTimeScale")==="week")timeScale="week";  // 時間ビューの軸スケール:日/週。既定=日
+  let timeScale="day";{const v=lsGet("wbsTimeScale");if(v==="week"||v==="month")timeScale=v;}  // 時間ビューの軸スケール:日/週/月。既定=日
   let pendingScaleCenter=false, lastRangeStart=null, lastDayPx=null;       // 日/週切替時だけ「表示中央の日付」を保ってスクロール復元（#pendingCenterと同型のワンショット）
   // 状態フィルタ(#91)：表示専用＝rows(行)を間引くだけ。データ(wbs.json)も横軸(時間範囲)も不変。既存_calcで3排他状態を判定
   const STATES=[{k:"todo",test:c=>!c.actualStart},{k:"wip",test:c=>!!c.actualStart&&!c.allDone},{k:"done",test:c=>!!c.allDone}];
@@ -616,7 +620,7 @@
       projects.forEach(p=>(p.milestones||[]).forEach(m=>isDate(m.date)&&ds.push(m.date)));
       ds.push(TODAY);
       const rangeStart=minStr(ds)||TODAY, rangeEnd=maxStr(ds)||TODAY;
-      const dayPx=timeScale==="week"?WEEK_COL_W/7:DAY_W;   // 週表示＝日精度のまま軸だけ圧縮（バー/イナズマ/MS線等のロジックは無変更で流用できる）
+      const dayPx=timeScale==="month"?MONTH_DAY_PX:timeScale==="week"?WEEK_COL_W/7:DAY_W;   // 週/月表示＝日精度のまま軸だけ圧縮（バー/イナズマ/MS線等のロジックは無変更で流用できる）
       const totalDays=diff(rangeStart,rangeEnd)+1, ganttW=totalDays*dayPx;
       const xOf=d=>diff(rangeStart,d)*dayPx, centerOf=d=>xOf(d)+dayPx/2, barW=(s,e)=>(diff(s,e)+1)*dayPx;
       const xToday=centerOf(TODAY);
@@ -654,13 +658,15 @@
       // 祝日（top-level の holidays）。文字列"YYYY-MM-DD" or {date,name} を許容。日付ヘッダ=赤字／列=ピンク（土日と同じ.we）
       const holMap=new Map();((data&&Array.isArray(data.holidays))?data.holidays:[]).forEach(h=>{const hd=typeof h==="string"?h:(h&&h.date);if(isDate(hd))holMap.set(hd,(h&&h.name)||"");});
       let ym="",dc="",bg="",weX=[],dcBounds=[],i=0;
-      while(i<totalDays){const key=addStr(rangeStart,i).slice(0,7);let j=i;
-        while(j<totalDays&&addStr(rangeStart,j).slice(0,7)===key)j++;
-        ym+=`<div class="seg" style="width:${(j-i)*dayPx}px">${t("ym")(key.slice(0,4),parseInt(key.slice(5,7),10))}</div>`;i=j;}
-      // 日付セル(dc)：日表示＝1日1セル（曜日/祝日で色分け）。週表示＝月曜始まりの週でグルーピングした1週1セル（ラベル=週開始日）
+      const ymKeyLen=timeScale==="month"?4:7;   // 月表示は年セグメント("YYYY")・日/週表示は年月セグメント("YYYY-MM")に1段階粗くする
+      while(i<totalDays){const key=addStr(rangeStart,i).slice(0,ymKeyLen);let j=i;
+        while(j<totalDays&&addStr(rangeStart,j).slice(0,ymKeyLen)===key)j++;
+        const ymLabel=timeScale==="month"?t("yr")(key):t("ym")(key.slice(0,4),parseInt(key.slice(5,7),10));
+        ym+=`<div class="seg" style="width:${(j-i)*dayPx}px">${ymLabel}</div>`;i=j;}
+      // 日付セル(dc)：日表示＝1日1セル（曜日/祝日で色分け）。週表示＝月曜始まりの週・月表示＝暦月でグルーピングした1セル（ラベル=週開始日/月）
       // 土日/祝日のx(weX)・月区切り線(bg)は表示スケールに関わらず常に日精度で算出（既存のSVGオーバーレイ・ロジックをそのまま流用するため）
       for(let k=0;k<totalDays;k++){const dsx=addStr(rangeStart,k),dow=parse(dsx).getUTCDay(),hn=holMap.get(dsx);
-        if(timeScale!=="week"){
+        if(timeScale==="day"){
           const cls=(dow===0?"sun":dow===6?"sat":"")+(hn!==undefined?" hol":"");
           dc+=`<div class="d ${cls}"${hn?` title="${esc(hn)}"`:""}><div>${parse(dsx).getUTCDate()}</div><div class="dow">${t("wd")[dow]}</div></div>`;
           dcBounds.push({l:k*dayPx,r:(k+1)*dayPx});
@@ -674,6 +680,14 @@
           while(j<totalDays&&mondayOf(addStr(rangeStart,j))===wk)j++;
           const l=k*dayPx,r=j*dayPx;                                 // 端の週は月曜前後で切れる分だけ幅が狭い部分セルになる（月セグメントと同じ丸め方式）
           dc+=`<div class="d" style="width:${r-l}px">${mdSlash(wk)}</div>`;
+          dcBounds.push({l,r});k=j;}
+      }
+      if(timeScale==="month"){
+        let k=0;
+        while(k<totalDays){const mk=addStr(rangeStart,k).slice(0,7);let j=k;   // 暦月("YYYY-MM")でグルーピング。うるう年2月等の日数差は addStr/diff のUTC演算が自動的に解決（丸め込みなし）
+          while(j<totalDays&&addStr(rangeStart,j).slice(0,7)===mk)j++;
+          const l=k*dayPx,r=j*dayPx;                                  // 端の月は実データ範囲で切れる分だけ幅が狭い部分セルになる
+          dc+=`<div class="d" style="width:${r-l}px">${t("mo")(parseInt(mk.slice(5,7),10))}</div>`;
           dcBounds.push({l,r});k=j;}
       }
       return {holMap, ym, dc, bg, weX, dcBounds};
@@ -794,7 +808,7 @@
           if(rlog.length&&ps&&pe){                                            // リスケ履歴(#96)：直近の修正1本だけトレイル（下=開始/上=終了。過去分は吹き出し＝ごちゃつき上限固定）
             const lt=rlog[rlog.length-1];
             const tr=(od,x1,top)=>{ if(!isDate(od))return;
-              const x0=centerOf(od); if(Math.abs(x1-x0)<3)return;
+              const x0=centerOf(od); if(Math.abs(x1-x0)<Math.min(3,dayPx*0.5))return;   // 閾値はdayPx依存の相対値（月表示のような極小dayPxでも最小1日分の差分は必ず表示される。dayPx>=6の日/週表示は従来どおり3のまま）
               bars+=`<span class="rs-knob${top?" top":""}" style="left:${x0-2}px"></span>`
                   +`<span class="rs-seg${top?" top":""}" style="left:${Math.min(x0,x1)}px;width:${Math.max(Math.abs(x1-x0),6)}px"></span>`
                   +`<span class="rs-arr${top?" top":""}" style="left:${x1-5}px">›</span>`;};
@@ -867,7 +881,7 @@
       const rh=$("rightHead"); const rb=$("rightBody");
       $("rtabs").innerHTML=
         ["time","progress"].map(v=>`<button class="rtab${v===activeView?" on":""}" data-view="${v}">${esc(t(v==="time"?"viewTime":"viewProg"))}</button>`).join("")
-        +(activeView==="time"?`<span class="tscale">`+["day","week"].map(s=>`<button class="tsc-btn${timeScale===s?" on":""}" data-scale="${s}">${esc(t(s==="day"?"tsDay":"tsWeek"))}</button>`).join("")+`</span>`:"");  // 時間ビューの軸スケール(日/週)。時間タブの時だけ出す
+        +(activeView==="time"?`<span class="tscale">`+["day","week","month"].map(s=>`<button class="tsc-btn${timeScale===s?" on":""}" data-scale="${s}">${esc(t({day:"tsDay",week:"tsWeek",month:"tsMonth"}[s]))}</button>`).join("")+`</span>`:"");  // 時間ビューの軸スケール(日/週/月)。時間タブの時だけ出す
       $("right").classList.toggle("pview",activeView==="progress");  // 進捗ビューは横スクロール無し＝幅に収めて全表示（左の折りたたみで幅が変われば追従）
       if(activeView==="progress"){
         rh.className="head phead"; rh.style.width="";
@@ -1264,12 +1278,12 @@
       if(idx<0){band.style.display="none";return;}
       const b=leftColBounds[idx]; band.style.left=b.rel+"px";band.style.width=b.w+"px";band.style.display="block";
     };
-    const setCol=clientX=>{                                                   // 縦：日付列（ガント領域のみ）。日表示は等幅なのでO(1)除算、週表示は端セル幅が不定なためdcBounds(コンテンツ座標)を二分探索
+    const setCol=clientX=>{                                                   // 縦：日付列（ガント領域のみ）。日表示は等幅なのでO(1)除算、週/月表示は端セル幅が不定なためdcBounds(コンテンツ座標)を二分探索
       const col=$("colHl"); if(!col)return;
       const days=document.querySelectorAll("#dates .d");
       const contentX=clientX-right.getBoundingClientRect().left+right.scrollLeft;
       let idx;
-      if(timeScale==="week"){                                                // dcBoundsは左端昇順・隙間なし前提の二分探索（mousemove毎の線形走査を避ける）
+      if(timeScale!=="day"){                                                  // dcBoundsは左端昇順・隙間なし前提の二分探索（mousemove毎の線形走査を避ける）
         let lo=0,hi=dcBounds.length-1; idx=-1;
         while(lo<=hi){const mid=(lo+hi)>>1,b=dcBounds[mid];
           if(contentX<b.l)hi=mid-1; else if(contentX>=b.r)lo=mid+1; else{idx=mid;break;}}
