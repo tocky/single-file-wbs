@@ -124,7 +124,7 @@ with sync_playwright() as p:
     check(nL() == 7, f"担当全員+状態全ONで全復活7行 -> {nL()}")
     check(pg.evaluate("()=>localStorage.getItem('wbsAsgOff')") == "[]", "全員=空off集合がlocalStorageに保存")
 
-      # ===== 期間フィルタ(#94) ===== 本日=月曜(2026-06-15)・週=6/15〜6/21
+    # ===== 期間フィルタ(#94) ===== 本日=月曜(2026-06-15)・週=6/15〜6/21
     check(pg.eval_on_selector_all('.seg-btn[data-period].on', "e=>e.length") == 1, "期間は単一選択(onは1つ)")
     # 今日(6/15)：実績が本日に重なる1.2だけ(1.1/2.1は過去完了・1.3は未来予定)
     pg.click('.seg-btn[data-period="today"]'); pg.wait_for_timeout(200)
