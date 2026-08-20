@@ -244,8 +244,8 @@
   .rsbdg{font:inherit;font-size:10px;padding:0 4px;margin-left:4px;border:none;background:transparent;color:#6b7280;cursor:pointer;border-radius:4px}  /* ↷N=修正回数。クリックで吹き出し */
   .rsbdg:hover{background:#eef4ff;color:var(--accent)}
   #rsPop,#rsForm{position:fixed;z-index:60;background:#fff;border:1px solid var(--btn-border);border-radius:8px;
-    box-shadow:0 3px 12px rgba(0,0,0,.18);padding:8px 12px;font-size:12px;line-height:1.7;color:var(--text);max-width:560px}
-  #rsPop .rsp-row{white-space:nowrap}
+    box-shadow:0 3px 12px rgba(0,0,0,.18);padding:8px 12px;font-size:12px;line-height:1.7;color:var(--text);min-width:200px;max-width:560px}
+  #rsPop .rsp-row{white-space:normal;overflow-wrap:break-word}
   #rsPop .rsp-base{border-top:1px solid var(--line);margin-top:4px;padding-top:4px;color:var(--muted)}
   #rsForm{border-color:var(--accent)}
   #rsForm input{font:inherit;border:1px solid #c3c9d2;border-radius:4px;padding:1px 5px}
