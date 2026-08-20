@@ -551,14 +551,19 @@
   try{const s=JSON.parse(lsGet("wbsColCollapsed")||"[]");if(Array.isArray(s))colCollapsed=new Set(s);}catch(_){}
   function saveColCollapsed(){lsSet("wbsColCollapsed",JSON.stringify([...colCollapsed]));}
   const COL_PRESETS=["gantt","standard","full"];                             // 列表示プリセット(#16)
-  const COL_PRESET_DEF={gantt:new Set(Object.values(COL_CG)),standard:new Set(["qh","prog","stat","note"]),full:new Set()};
+  const COL_PRESET_KEEP_STD=new Set(["work","asg","plan","act"]);          // Standardはこの4グループのみ表示（追加グループは既定で畳む）
+  const COL_PRESET_DEF={
+    gantt:()=>new Set(Object.values(COL_CG)),
+    standard:()=>{const all=new Set(Object.values(COL_CG)); COL_PRESET_KEEP_STD.forEach(g=>all.delete(g)); return all;},
+    full:()=>new Set(),
+  };
   let colPreset="custom";
   const isSameSet=(a,b)=>a.size===b.size&&[...a].every(x=>b.has(x));
-  const inferColPreset=()=>COL_PRESETS.find(k=>isSameSet(colCollapsed,COL_PRESET_DEF[k]))||"custom";
+  const inferColPreset=()=>COL_PRESETS.find(k=>isSameSet(colCollapsed,COL_PRESET_DEF[k]()))||"custom";
   function saveColPreset(){lsSet("wbsColPreset",colPreset);}
   function applyColPreset(mode){
     if(!COL_PRESET_DEF[mode])return;
-    colCollapsed=new Set(COL_PRESET_DEF[mode]);                                // モード適用は決定論的に再構築
+    colCollapsed=COL_PRESET_DEF[mode]();                                       // モード適用は決定論的に再構築
     colPreset=mode;
     saveColCollapsed(); saveColPreset();
   }
