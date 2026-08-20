@@ -57,6 +57,7 @@
   .seg-btn,.tsc-btn{font:inherit;font-size:11px;padding:2px 8px;border:none;border-left:1px solid var(--btn-border);background:#fff;color:var(--muted);cursor:pointer}
   .seg-btn:first-child,.tsc-btn:first-child{border-left:none}
   .seg-btn.on,.tsc-btn.on{background:var(--accent);color:#fff}                   /* 選択中＝塗り（単一選択を明示）。.tsc-btn=時間ビューの軸スケール(日/週)。.seg-btnと見た目は共有しつつクラスは分離（#94期間フィルタの単一選択テストと衝突しないよう） */
+  .sfilter .seg-tag{font-size:11px;color:var(--muted);padding-left:4px}  /* 列プリセット手動調整後の表示=カスタム */
   #stat{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;color:var(--muted);line-height:1.18}
   #stat b{color:var(--text)}
   #stat .mrows{display:inline-block;text-align:left;font-variant-numeric:tabular-nums}
@@ -355,6 +356,8 @@
       fDelay:"遅延のみ",fDelayTip:"遅れているタスクだけ表示（進捗遅れ or 期限超過）。状態など他の絞り込みと重ねて効く（表示専用）",
       fAsg:"担当",fAsgAll:"全員",fAsgNone:"(未割当)",fAsgSelAll:"全選択",fAsgClear:"全解除",fAsgTip:"担当で表示/非表示（複数選択・チェックした人だけ表示）。他の絞り込みと重ねて効く（表示専用）",
       fPerToday:"今日",fPerWeek:"今週",fPerAll:"全期間",fPerTip:"予定or実績がその期間に重なるタスクだけ表示（今週=本日を含む月〜日）。横軸は動かさず行だけ絞る（表示専用）",
+      fCol:"列",fColTip:"列表示プリセット。ガント優先=情報列をすべて畳む／標準=工数・担当・予定・実績を表示／フル=全列表示。適用後も+/−で微調整でき、手動変更時はカスタム表示",
+      fColGantt:"ガント優先",fColStd:"標準",fColFull:"フル",fColCustom:"カスタム",
       rsTip:"予定変更の履歴（クリックで表示）",rsBtnTip:"リスケ（予定変更を履歴に記録して予定を更新）",
       rsTitle:n=>`変更履歴（${n}回）`,rsBy:"理由",rsOrig:"当初",rsNow:"現在",rsVs:"当初比",rsD:n=>`${n>0?"+":""}${n}日`,
       rsForm:"リスケ（履歴に記録）",rsCur:"現予定",rsNewS:"新開始",rsNewE:"新終了",rsReasonPh:"理由（任意・例: #504の遅延で後ろ倒し）",
@@ -404,6 +407,8 @@
       fDelay:"Delayed only",fDelayTip:"Show only delayed tasks (behind schedule or past due). Combines with the other filters (display only)",
       fAsg:"Owner",fAsgAll:"All",fAsgNone:"(none)",fAsgSelAll:"All",fAsgClear:"None",fAsgTip:"Show/hide by owner (multi-select; only checked owners shown). Combines with the other filters (display only)",
       fPerToday:"Today",fPerWeek:"This week",fPerAll:"All",fPerTip:"Show only tasks whose plan or actual overlaps the period (this week = Mon–Sun containing today). The axis doesn't move, only rows are filtered (display only)",
+      fCol:"Columns",fColTip:"Column-view presets. Gantt focus = collapse all info columns / Standard = show Effort, Owner, Plan, Actual / Full = show all columns. You can still fine-tune with +/−; manual edits are shown as Custom",
+      fColGantt:"Gantt focus",fColStd:"Standard",fColFull:"Full",fColCustom:"Custom",
       rsTip:"Reschedule history (click to show)",rsBtnTip:"Reschedule (record the change in history and update the plan)",
       rsTitle:n=>`Reschedule history (${n})`,rsBy:"Reason",rsOrig:"Baseline",rsNow:"Now",rsVs:"vs baseline",rsD:n=>`${n>0?"+":""}${n}d`,
       rsForm:"Reschedule (recorded)",rsCur:"Current",rsNewS:"New start",rsNewE:"New end",rsReasonPh:"Reason (optional, e.g. pushed back by #504)",
@@ -545,6 +550,27 @@
   let colCollapsed=new Set();
   try{const s=JSON.parse(lsGet("wbsColCollapsed")||"[]");if(Array.isArray(s))colCollapsed=new Set(s);}catch(_){}
   function saveColCollapsed(){lsSet("wbsColCollapsed",JSON.stringify([...colCollapsed]));}
+  const COL_PRESETS=["gantt","standard","full"];                             // 列表示プリセット(#16)
+  const COL_PRESET_KEEP_STD=new Set(["work","asg","plan","act"]);          // Standardはこの4グループのみ表示（追加グループは既定で畳む）
+  const COL_PRESET_DEF={
+    gantt:()=>new Set(Object.values(COL_CG)),
+    standard:()=>{const all=new Set(Object.values(COL_CG)); COL_PRESET_KEEP_STD.forEach(g=>all.delete(g)); return all;},
+    full:()=>new Set(),
+  };
+  let colPreset="custom";
+  const isSameSet=(a,b)=>a.size===b.size&&[...a].every(x=>b.has(x));
+  const inferColPreset=()=>COL_PRESETS.find(k=>isSameSet(colCollapsed,COL_PRESET_DEF[k]()))||"custom";
+  function saveColPreset(){lsSet("wbsColPreset",colPreset);}
+  function applyColPreset(mode){
+    if(!COL_PRESET_DEF[mode])return;
+    colCollapsed=COL_PRESET_DEF[mode]();                                       // モード適用は決定論的に再構築
+    colPreset=mode;
+    saveColCollapsed(); saveColPreset();
+  }
+  {const m=lsGet("wbsColPreset");
+    if(COL_PRESET_DEF[m])applyColPreset(m);                                    // 起動時もモード選択を優先（列増減があっても定義どおり再構築）
+    else colPreset=inferColPreset();
+  }
 
   // 列幅調整（ドラッグ・#12）：作業項目/担当/備考。localStorageに列ごとに永続化
   const colW={};
@@ -1188,6 +1214,7 @@
     const b=e.target.closest("[data-colcol],[data-colexp]"); if(!b||!lastData)return;
     const col=b.getAttribute("data-colcol"),exp=b.getAttribute("data-colexp");
     if(col)colCollapsed.add(col); else colCollapsed.delete(exp);
+    colPreset="custom"; saveColPreset();                                      // 手動微調整は正直に custom 表示へ
     saveColCollapsed(); render(lastData);
   });
   $("leftRows").addEventListener("click",e=>{
@@ -1821,7 +1848,10 @@
     }
     const per=`<span class="sf-sep"></span><span class="seg" title="${esc(t("fPerTip"))}">`+   // 期間(#94)：単一選択セグメント
       PERIODS.map(p=>`<button class="seg-btn${period===p.k?" on":""}" data-period="${esc(p.k)}">${esc(t(p.l))}</button>`).join("")+`</span>`;
-    el.innerHTML=states+delay+asg+per;
+    const cps=`<span class="sf-sep"></span><span class="sf-lbl">${esc(t("fCol"))}</span><span class="seg" title="${esc(t("fColTip"))}">`
+      +COL_PRESETS.map(k=>`<button class="seg-btn${colPreset===k?" on":""}" data-colpreset="${esc(k)}">${esc(t({gantt:"fColGantt",standard:"fColStd",full:"fColFull"}[k]))}</button>`).join("")
+      +`</span>${colPreset==="custom"?`<span class="seg-tag">${esc(t("fColCustom"))}</span>`:""}`;
+    el.innerHTML=states+delay+asg+per+cps;
   }
   const refreshFilters=()=>{ if(lastData)render(lastData); else renderStateFilter(); };  // renderがフィルタバーも再構築（開閉は保持）
   $("stateFilter").addEventListener("click",e=>{
@@ -1833,7 +1863,8 @@
       refreshFilters();
     }else if(e.target.closest(".asg-all")){asgOff.clear();saveAsg();refreshFilters();}                    // 担当:全選択
     else if(e.target.closest(".asg-none")){asgOff.clear();asgList.forEach(a=>asgOff.add(a));saveAsg();refreshFilters();}  // 担当:全解除
-    else if(e.target.closest(".seg-btn")){period=e.target.closest(".seg-btn").getAttribute("data-period");lsSet("wbsPeriod",period);refreshFilters();}  // 期間(#94)
+    else if(e.target.closest("[data-colpreset]")){applyColPreset(e.target.closest("[data-colpreset]").getAttribute("data-colpreset")); refreshFilters();}  // 列表示プリセット(#16)
+    else if(e.target.closest("[data-period]")){period=e.target.closest("[data-period]").getAttribute("data-period");lsSet("wbsPeriod",period);refreshFilters();}  // 期間(#94)
   });
   $("stateFilter").addEventListener("change",e=>{       // 担当(#93)チェックボックス＝複数選択
     const cb=e.target.closest(".asg-cb"); if(!cb)return;
