@@ -20,10 +20,10 @@ FX = {"projects": [{"name": "表示マトリクス", "milestones": [], "tasks": 
      "actual": {"start": None, "end": None}, "note": ""}
 ]}]}
 
-# 期待セル列。進捗(index5)・状況(index6)は本日依存なので比較から除外（test_progressで担保）。
+# 期待セル列。期間(index5)・進捗(index6)・状況(index7)は派生列なので比較から除外（test_progressで担保）。
 # 残り11列 = [No.,名前,数量,時間,工数,担当,予定開始,予定終了,実績開始,実績終了,備考]
-def strip(cells):  # 進捗・状況の2列を落とす
-    return cells[:5] + cells[7:]
+def strip(cells):  # 期間・進捗・状況の3列を落とす
+    return cells[:5] + cells[8:]
 EXPECT = {
     "prow":      ['◆', '▼表示マトリクス', '', '', '6', '', '6/2', '6/12', '', '', ''],              # 親=配下合計工数6・最小最大期間
     "1":         ['1', '▼集計工程', '', '', '5', '', '6/2', '6/10', '6/2', '6/6', ''],              # 集計=1+4・実績は子のmin/max

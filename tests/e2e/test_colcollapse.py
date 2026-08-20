@@ -16,17 +16,17 @@ with sync_playwright() as p:
     pg.goto(VIEWER)
     pg.click("#openBtn"); pg.wait_for_timeout(200)
 
-    # 折りたたみ単位＝7（数量時間/進捗/状況/担当/予定/実績/備考）。No.・作業項目・工数は対象外
+    # 折りたたみ単位＝9（数量時間/工数/期間/進捗/状況/担当/予定/実績/備考）。No.・作業項目は対象外
     units = pg.evaluate("()=>[...document.querySelectorAll('.htab-sp .ctglb')].map(b=>b.getAttribute('data-colcol'))")
-    check(set(filter(None, units)) == {"qh", "work", "prog", "stat", "asg", "plan", "act", "note"},
-          f"折りたたみトグルは8単位 -> {units}")
+    check(set(filter(None, units)) == {"qh", "work", "dur", "prog", "stat", "asg", "plan", "act", "note"},
+          f"折りたたみトグルは9単位 -> {units}")
 
     # 列表示プリセット(#16)：3モードが出る・モード適用は決定論的に colCollapsed を再構築
     nPreset = pg.eval_on_selector_all('#filterBar [data-colpreset]', "e=>e.length")
     check(nPreset == 3, f"列表示プリセットは3ボタン -> {nPreset}")
     pg.click('#filterBar [data-colpreset="standard"]'); pg.wait_for_timeout(120)
     std = set(pg.evaluate("()=>JSON.parse(localStorage.getItem('wbsColCollapsed')||'[]')"))
-    check(std == {"qh", "prog", "stat", "note"}, f"標準=数量時間/進捗/状況/備考を畳む -> {sorted(std)}")
+    check(std == {"qh", "dur", "prog", "stat", "note"}, f"標準=数量時間/期間/進捗/状況/備考を畳む -> {sorted(std)}")
     check(pg.evaluate("()=>localStorage.getItem('wbsColPreset')") == "standard", "標準モードが保存される")
 
     pg.click('#filterBar [data-colpreset="full"]'); pg.wait_for_timeout(120)
@@ -35,7 +35,7 @@ with sync_playwright() as p:
 
     pg.click('#filterBar [data-colpreset="gantt"]'); pg.wait_for_timeout(120)
     gantt = set(pg.evaluate("()=>JSON.parse(localStorage.getItem('wbsColCollapsed')||'[]')"))
-    check(gantt == {"qh", "work", "prog", "stat", "asg", "plan", "act", "note"},
+    check(gantt == {"qh", "work", "dur", "prog", "stat", "asg", "plan", "act", "note"},
           f"ガント優先=情報列を全畳み -> {sorted(gantt)}")
     # プリセット適用後も +/− 微調整可。手動操作したら custom に落ちる
     pg.click('.htab-sp .ctglb[data-colexp="note"]'); pg.wait_for_timeout(120)
