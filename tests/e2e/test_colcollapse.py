@@ -21,6 +21,27 @@ with sync_playwright() as p:
     check(set(filter(None, units)) == {"qh", "work", "prog", "stat", "asg", "plan", "act", "note"},
           f"折りたたみトグルは8単位 -> {units}")
 
+    # 列表示プリセット(#16)：3モードが出る・モード適用は決定論的に colCollapsed を再構築
+    nPreset = pg.eval_on_selector_all('#filterBar [data-colpreset]', "e=>e.length")
+    check(nPreset == 3, f"列表示プリセットは3ボタン -> {nPreset}")
+    pg.click('#filterBar [data-colpreset="standard"]'); pg.wait_for_timeout(120)
+    std = set(pg.evaluate("()=>JSON.parse(localStorage.getItem('wbsColCollapsed')||'[]')"))
+    check(std == {"qh", "prog", "stat", "note"}, f"標準=数量時間/進捗/状況/備考を畳む -> {sorted(std)}")
+    check(pg.evaluate("()=>localStorage.getItem('wbsColPreset')") == "standard", "標準モードが保存される")
+
+    pg.click('#filterBar [data-colpreset="full"]'); pg.wait_for_timeout(120)
+    full = pg.evaluate("()=>JSON.parse(localStorage.getItem('wbsColCollapsed')||'[]')")
+    check(full == [], f"フル=全列表示（畳みなし） -> {full}")
+
+    pg.click('#filterBar [data-colpreset="gantt"]'); pg.wait_for_timeout(120)
+    gantt = set(pg.evaluate("()=>JSON.parse(localStorage.getItem('wbsColCollapsed')||'[]')"))
+    check(gantt == {"qh", "work", "prog", "stat", "asg", "plan", "act", "note"},
+          f"ガント優先=情報列を全畳み -> {sorted(gantt)}")
+    # プリセット適用後も +/− 微調整可。手動操作したら custom に落ちる
+    pg.click('.htab-sp .ctglb[data-colexp="note"]'); pg.wait_for_timeout(120)
+    check(pg.evaluate("()=>localStorage.getItem('wbsColPreset')") == "custom", "手動の+操作でモード表示はcustomに落ちる")
+    pg.click('#filterBar [data-colpreset="full"]'); pg.wait_for_timeout(120)  # 既存ケース開始前に全列表示へ戻す
+
     w0 = pg.evaluate("()=>Math.round(document.getElementById('left').getBoundingClientRect().width)")
     notes0 = pg.evaluate("()=>document.querySelectorAll('#leftRows .c.note').length")
     check(notes0 > 0, "畳む前は備考セルがある")

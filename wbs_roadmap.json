@@ -1453,6 +1453,22 @@
                 "end": null
               },
               "note": "#15：https://github.com/tocky/single-file-wbs/issues/15 工数（人日）とは別軸で期間（営業日）を可視化。単位=営業日(bizDays()再利用・祝日考慮)、予定/実績の両方、工数列の隣に新規列。親ノードは配下リーフの最小start〜最大endのスパン（工数=合計と一致しないことが並行作業の可視化になる）。wbs.jsonへの新規フィールド追加なし（ADR-0003準拠・派生値のみ）"
+            },
+            {
+              "id": "7.2",
+              "name": "列表示プリセット3モード",
+              "qty": 1,
+              "hours": 8,
+              "assignee": "tocky",
+              "plan": {
+                "start": "2026-08-20",
+                "end": "2026-08-22"
+              },
+              "actual": {
+                "start": "2026-08-20",
+                "end": "2026-08-20"
+              },
+              "note": "#16：https://github.com/tocky/single-file-wbs/issues/16 列表示プリセット（ガント優先/標準/フル）をワンクリック切替。COL_CGベースでcolCollapsedを決定論的に再構築し、手動の+/−微調整を維持。選択モードと折りたたみ状態をlocalStorage記憶、I18N(ja/en)・CLAUDE.md/en更新を同コミットで実施"
             }
           ]
         }
