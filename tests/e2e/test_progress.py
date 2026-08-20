@@ -41,10 +41,10 @@ with sync_playwright() as p:
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.goto(VIEWER); pg.evaluate("d => window.renderData(d)", DATA); pg.wait_for_timeout(200)
     def row(nm): return pg.evaluate(READ, nm)
-    o = row("override"); check(o["prog"] == "40%" and o["stat"] == "10 / 40 / 50", f"override: 40%・状況10/40/50（得 {o}）")
+    o = row("override"); check(o["prog"] == "40%" and o["stat"] == "10/40/50", f"override: 40%・状況10/40/50（得 {o}）")
     q = row("quantize"); check(q["prog"] == "70%" and q["stat"] == "70", f"quantize: 73→70%・遅れ無=実績のみ（得 {q}）")
     f = row("fallback"); check(f["prog"] == "50%" and f["stat"] == "50", f"fallback: 時間ベース50%・slip0（得 {f}）")
-    d = row("overdue"); check(d["prog"] == "60%" and d["stat"] == "40 / 60 / 100" and d["overdue"], f"overdue: 60%・40/60/100・予定終了=赤（得 {d}）")
+    d = row("overdue"); check(d["prog"] == "60%" and d["stat"] == "40/60/100" and d["overdue"], f"overdue: 60%・40/60/100・予定終了=赤（得 {d}）")
     u = row("future"); check(u["prog"] == "0%" and u["stat"] == "0" and not u["overdue"], f"future: 0%・slip0・赤でない（得 {u}）")
 
     # --- 進捗タブ：切替で右ペインが入替（両方同時描画しない）---

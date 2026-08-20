@@ -105,6 +105,7 @@
   .stp button{width:18px;height:18px;line-height:1;border:1px solid var(--btn-border);background:#f3f6fb;border-radius:4px;font-size:11px;color:#3a5694;padding:0;cursor:pointer}
   .stp button:hover{background:#e6eefb}
   .s-d{color:#e11d48;font-weight:700}.s-a{color:var(--actual)}.s-p{color:var(--text)}.s-x{color:var(--text)}  /* 状況: 遅=赤/実=青/予=黒(区切りも黒) */
+  .c.dur .s-x,.c.stat .s-x{display:inline-block;padding:0 .35em}  /* 期間/状況セルの区切りはCSSで余白を付与（文字参照に依存しない） */
   .c.overdue{color:#e11d48;font-weight:600}                                     /* 予定終了の締切超過=赤 */
   .prow{background:var(--proj);font-weight:700;border-top:3px solid var(--proj-line);border-bottom:2px solid var(--proj-line)}
   .lvl0{background:var(--lvl0)} .lvl1{background:var(--lvl1)} .lvl2{background:#fff}
@@ -350,7 +351,7 @@
       detailAggTitle:"集計",detailEnableEdit:"編集する",detailClose:"閉じる",detailNoTip:"クリックで詳細を表示",detailActions:"操作",
       editTitle:"インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します",
       notLoaded:"未読み込み",empty:"「ファイルを開く」または D&D で <b>wbs.json</b> を読み込んでください（Chrome）。",
-      colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",viewStructure:"構造",tsDay:"日",tsWeek:"週",tsMonth:"月",colAsg:"担当",
+      colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colDur:"期間",colDurUnit:"(予定 / 実績)",colDurTip:"期間＝営業日数（予定/実績）。土日＋祝日(holidays)を除外。親は配下リーフの最小開始〜最大終了のスパン",durA:"実",durP:"予",durUnit:"日",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",viewStructure:"構造",tsDay:"日",tsWeek:"週",tsMonth:"月",colAsg:"担当",
       colStart:"開始",colEnd:"終了",colNote:"備考",grpPlan:"予定",grpActual:"実績",
       fBar:"絞り込み",fLabel:"状態",fTodo:"未着手",fWip:"進行中",fDone:"完了",fTip:"状態で表示/非表示（表示専用・データは変えません）。押下＝表示中",
       fDelay:"遅延のみ",fDelayTip:"遅れているタスクだけ表示（進捗遅れ or 期限超過）。状態など他の絞り込みと重ねて効く（表示専用）",
@@ -401,7 +402,7 @@
       detailAggTitle:"Summary",detailEnableEdit:"Edit",detailClose:"Close",detailNoTip:"Click to view details",detailActions:"Actions",
       editTitle:"Inline editing (autosave). When turning ON, re-select wbs.json in the save dialog to grant write permission",
       notLoaded:"No file loaded",empty:"Load <b>wbs.json</b> via \"Open file\" or drag &amp; drop (Chrome).",
-      colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",viewStructure:"Structure",tsDay:"Day",tsWeek:"Week",tsMonth:"Month",colAsg:"Owner",
+      colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colDur:"Duration",colDurUnit:"(Plan / Actual)",colDurTip:"Duration = business days (planned/actual), excluding weekends and holidays (`holidays`). Parents use the min-start to max-end span of descendant leaves",durA:"A",durP:"P",durUnit:"d",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",viewStructure:"Structure",tsDay:"Day",tsWeek:"Week",tsMonth:"Month",colAsg:"Owner",
       colStart:"Start",colEnd:"End",colNote:"Notes",grpPlan:"Plan",grpActual:"Actual",
       fBar:"Filter",fLabel:"State",fTodo:"To do",fWip:"In progress",fDone:"Done",fTip:"Show/hide by state (display only — data is never changed). Pressed = shown",
       fDelay:"Delayed only",fDelayTip:"Show only delayed tasks (behind schedule or past due). Combines with the other filters (display only)",
@@ -527,6 +528,8 @@
      view:(c,n,x)=>x.leaf?esc(n.hours):"", field:"hours",edit:"number",get:(c,n)=>n.hours},
     {key:"work",label:"colWork",sub:"colWorkUnit",tip:"colWorkTip",w:56,cls:"r",
      view:c=>c.load?esc(fmtLoad(c.load)):""},                                  // 派生（編集不可）
+    {key:"dur",label:"colDur",sub:"colDurUnit",tip:"colDurTip",w:108,cls:"r dur",
+     view:c=>durationCell(c)},
     {key:"prog",label:"colProg",tip:"colProgTip",w:80,cls:"prog",             // 進捗ステッパー（編集=±10%／表示=集計%）。独自ウィジェット（◀N%▶=最小80px）
      view:(c,n,x)=>progStep(c.progress, editMode&&x.leaf, x.path)},
     {key:"stat",label:"colStat",tip:"colStatTip",w:104,cls:"r stat",         // 状況=遅れ/実績/予定（工数と同じ作り：2段ヘッダ＋セル1行右寄せ）
@@ -546,7 +549,7 @@
   ];
 
   // アウトライン式の列折りたたみ：列→折りたたみ単位の対応（No.・作業項目は対応なし＝常時表示）。数量+時間は工数の内訳でまとめる／工数は個別
-  const COL_CG={qty:"qh",hrs:"qh",work:"work",prog:"prog",stat:"stat",asg:"asg",ps:"plan",pe:"plan",as:"act",ae:"act",note:"note"};
+  const COL_CG={qty:"qh",hrs:"qh",work:"work",dur:"dur",prog:"prog",stat:"stat",asg:"asg",ps:"plan",pe:"plan",as:"act",ae:"act",note:"note"};
   let colCollapsed=new Set();
   try{const s=JSON.parse(lsGet("wbsColCollapsed")||"[]");if(Array.isArray(s))colCollapsed=new Set(s);}catch(_){}
   function saveColCollapsed(){lsSet("wbsColCollapsed",JSON.stringify([...colCollapsed]));}
@@ -597,9 +600,18 @@
   function statusCell(c){
     const ev=Math.round(c.progress), pv=Math.round(c.pv||0), slip=Math.round(c.slip||0);
     return slip>0
-      ? `<span class="s-d">${slip}</span><span class="s-x"> / </span><span class="s-a">${ev}</span><span class="s-x"> / </span><span class="s-p">${pv}</span>`
+      ? `<span class="s-d">${slip}</span><span class="s-x">/</span><span class="s-a">${ev}</span><span class="s-x">/</span><span class="s-p">${pv}</span>`
       : `<span class="s-a">${ev}</span>`;
   }
+  function durationCell(c){
+    const pb=Number.isFinite(c.planBiz)?c.planBiz:null;
+    const ab=Number.isFinite(c.actualBiz)?c.actualBiz:null;
+    if(pb==null&&ab==null)return "—";
+    const pt=pb==null?"—":String(pb);
+    const at=ab==null?"—":String(ab);
+    return `<span class="s-p">${esc(pt)}</span><span class="s-x">/</span><span class="s-a">${esc(at)}</span>`;
+  }
+  const holidaysMapOf=data=>{const m=new Map();((data&&Array.isArray(data.holidays))?data.holidays:[]).forEach(h=>{const hd=typeof h==="string"?h:(h&&h.date);if(isDate(hd))m.set(hd,(h&&h.name)||"");});return m;};
   // 編集入力欄（型でテンプレ分岐）。テーブルのインライン編集・詳細ダイアログ両方から使う共通ヘルパー
   function inp(path,f,val,type){
     return type==="date"
@@ -630,16 +642,19 @@
     inner+=`<div class="ptick"></div>`;                                           // 目盛りは最前面（青/赤バーの上）に重ねる
     return `<div class="prw ${cls}${thin?" thin":""}${done?" done":""}"><div class="prw-bars">${inner}</div></div>`;
   }
-  function computeNode(n,TODAY){
+  function computeNode(n,TODAY,holMap){
     if(n.children&&n.children.length){
-      const cs=n.children.map(c=>computeNode(c,TODAY));
+      const cs=n.children.map(c=>computeNode(c,TODAY,holMap));
       const load=cs.reduce((s,c)=>s+c.load,0);
       const progress=load?cs.reduce((s,c)=>s+c.progress*c.load,0)/load:0;
       const pv=load?cs.reduce((s,c)=>s+(c.pv||0)*c.load,0)/load:0;            // 親PV=子の加重平均・slipは集約値から（EVMのSVはネット）
+      const planStart=minStr(cs.map(c=>c.planStart)), planEnd=maxStr(cs.map(c=>c.planEnd));
+      const actualStart=minStr(cs.map(c=>c.actualStart)), actualEnd=maxStr(cs.map(c=>c.actualEnd));
+      const actualEndEff=maxStr(cs.map(c=>c.actualEndEff));
       const calc={load,progress,pv,slip:Math.max(pv-progress,0),isLeaf:false,allDone:cs.every(c=>c.allDone),  // 全子が実完了
-        planStart:minStr(cs.map(c=>c.planStart)),planEnd:maxStr(cs.map(c=>c.planEnd)),
-        actualStart:minStr(cs.map(c=>c.actualStart)),actualEnd:maxStr(cs.map(c=>c.actualEnd)),
-        actualEndEff:maxStr(cs.map(c=>c.actualEndEff))};
+        planStart,planEnd,actualStart,actualEnd,actualEndEff,
+        planBiz:(planStart&&planEnd)?bizDays(planStart,planEnd,holMap):null,
+        actualBiz:(actualStart&&actualEndEff)?bizDays(actualStart,actualEndEff,holMap):null};
       n._calc=calc;n._leaf=false;return calc;
     }
     const p=n.plan||{},a=n.actual||{};
@@ -657,7 +672,9 @@
     if(ps&&pe){let dur=diff(ps,pe);if(!(dur>=1))dur=1;pv=clamp(diff(ps,TODAY)/dur*100,0,100);}
     const slip=Math.max(pv-progress,0);
     const calc={load,progress,pv,slip,isLeaf:true,allDone:!!ae,planStart:ps,planEnd:pe,  // 実績終了あり=完了
-      actualStart:as,actualEnd:ae,actualEndEff};
+      actualStart:as,actualEnd:ae,actualEndEff,
+      planBiz:(ps&&pe)?bizDays(ps,pe,holMap):null,
+      actualBiz:(as&&actualEndEff)?bizDays(as,actualEndEff,holMap):null};
     n._calc=calc;n._leaf=true;return calc;
   }
   // クリティカルパス計算（依存関係の可視化・#66）。_deps（先行タスクidの配列・リーフのみ対象）からグラフを構築し、
@@ -751,7 +768,7 @@
     const TODAY=todayStr();
     periodR = period==="all" ? null : period==="today" ? [TODAY,TODAY]   // 期間(#94)：週=本日を含む月〜日
       : (()=>{const mon=addStr(TODAY,-((parse(TODAY).getUTCDay()+6)%7));return [mon,addStr(mon,6)];})();
-    const projects=normalizeProjects(data);
+    const projects=normalizeProjects(data), holMap=holidaysMapOf(data);
     curProjects=projects;                                                    // 編集ハンドラ用に保持
     const cw=c=>editMode&&DATE_FIELDS[c.key]?84:COL_RESIZE[c.key]?colW[c.key]+(c.key==="name"&&editMode?72:0):editMode&&(c.key==="qty"||c.key==="hrs")?52:c.w;  // 編集時：日付列84px(#59)・作業項目はドラッグ幅+72(操作ボタンぶん名前入力に幅確保・#12で担当/備考にも幅調整を拡張)・数量/時間は▲▼を残し3桁見える52px
 
@@ -760,7 +777,7 @@
     function buildRows(){
       const ms=[], rows=[];
       projects.forEach((proj,pi)=>{
-        (proj.tasks||[]).forEach(n=>computeNode(n,TODAY));
+        (proj.tasks||[]).forEach(n=>computeNode(n,TODAY,holMap));
         const lv=leavesOf(proj.tasks);
         const load=lv.reduce((s,n)=>s+n._calc.load,0);
         const prog=load?lv.reduce((s,n)=>s+n._calc.progress*n._calc.load,0)/load:0;
@@ -840,7 +857,6 @@
     // 年月セグメント(ym)・日付セル(dc)・月区切り線(bg)・土日/祝日のx座標(weX)・祝日マップ(holMap)
     function buildDateHeader(){
       // 祝日（top-level の holidays）。文字列"YYYY-MM-DD" or {date,name} を許容。日付ヘッダ=赤字／列=ピンク（土日と同じ.we）
-      const holMap=new Map();((data&&Array.isArray(data.holidays))?data.holidays:[]).forEach(h=>{const hd=typeof h==="string"?h:(h&&h.date);if(isDate(hd))holMap.set(hd,(h&&h.name)||"");});
       let ym="",dc="",bg="",weX=[],dcBounds=[],i=0;
       const ymKeyLen=timeScale==="month"?4:7;   // 月表示は年セグメント("YYYY")・日/週表示は年月セグメント("YYYY-MM")に1段階粗くする
       while(i<totalDays){const key=addStr(rangeStart,i).slice(0,ymKeyLen);let j=i;
@@ -1179,7 +1195,7 @@
     const {rangeStart,rangeEnd,totalDays,ganttW,xOf,centerOf,barW,xToday,dayPx} = buildRange();
     const eCols=effCols();
     const lh = buildLeftHeader();
-    const {holMap, ym, dc, bg, weX, dcBounds:_dcBounds} = buildDateHeader();
+    const {ym, dc, bg, weX, dcBounds:_dcBounds} = buildDateHeader();
     dcBounds=_dcBounds;   // 日付列の十字ハイライト用（mousemoveハンドラは render() 外の別スコープにあるため橋渡し）
     const {lrows, grows, progRows, pts, rowsH} = buildRowBodies();
     pts.push([xToday,rowsH]);

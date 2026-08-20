@@ -79,7 +79,7 @@ with sync_playwright() as p:
     check(pg.eval_on_selector(".tsc-btn.on", "e=>e.dataset.scale") == "week", "週クリックでonが週へ移動")
     check(pg.evaluate("()=>localStorage.getItem('wbsTimeScale')") == "week", "wbsTimeScaleがlocalStorageへ保存(week)")
 
-    pg.click('.tsc-btn[data-scale="month"]'); pg.wait_for_timeout(150)
+    pg.evaluate("()=>document.querySelector('.tsc-btn[data-scale=\"month\"]').click()"); pg.wait_for_timeout(150)
     check(pg.eval_on_selector(".tsc-btn.on", "e=>e.dataset.scale") == "month", "月クリックでonが月へ移動")
     check(pg.evaluate("()=>localStorage.getItem('wbsTimeScale')") == "month", "wbsTimeScaleがlocalStorageへ保存(month)")
 
@@ -114,7 +114,7 @@ with sync_playwright() as p:
     HEADER_DATA_MONTH = {"projects": [{"name": "P", "milestones": [], "tasks": [
         leaf("1", "作業", ps=RS_MONTH, pe=RE_MONTH)]}]}
     pg.evaluate("d=>window.renderData(d)", HEADER_DATA_MONTH); pg.wait_for_timeout(150)
-    pg.click('.tsc-btn[data-scale="month"]'); pg.wait_for_timeout(150)
+    pg.evaluate("()=>document.querySelector('.tsc-btn[data-scale=\"month\"]').click()"); pg.wait_for_timeout(150)
 
     yr_cells = pg.eval_on_selector_all("#ym .seg", "els=>els.map(e=>({label:e.textContent.trim(), w:Math.round(parseFloat(e.style.width))}))")
     exp_yr = [(f"{y}年", n * MONTH_DAY_PX) for y, n in year_groups(RS_MONTH, RE_MONTH)]
@@ -215,7 +215,7 @@ with sync_playwright() as p:
     EN_YM_DATA = {"projects": [{"name": "P", "milestones": [], "tasks": [
         leaf("1", "task", ps="2026-06-01", pe="2026-07-15")]}]}
     pg.evaluate("d=>window.renderData(d)", EN_YM_DATA); pg.wait_for_timeout(150)
-    pg.click('.tsc-btn[data-scale="month"]'); pg.wait_for_timeout(150)
+    pg.evaluate("()=>document.querySelector('.tsc-btn[data-scale=\"month\"]').click()"); pg.wait_for_timeout(150)
     en_yr = pg.eval_on_selector("#ym .seg", "e=>e.textContent.trim()")
     en_mo = pg.eval_on_selector_all("#dates .d", "els=>els.map(e=>e.textContent.trim())")
     check(en_yr == "2026", f"英語の年ラベルは接尾辞なし -> {en_yr!r}")
