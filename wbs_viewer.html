@@ -600,7 +600,7 @@
   function statusCell(c){
     const ev=Math.round(c.progress), pv=Math.round(c.pv||0), slip=Math.round(c.slip||0);
     return slip>0
-      ? `<span class="s-d">${slip}</span><span class="s-x"> / </span><span class="s-a">${ev}</span><span class="s-x"> / </span><span class="s-p">${pv}</span>`
+      ? `<span class="s-d">${slip}</span><span class="s-x">/</span><span class="s-a">${ev}</span><span class="s-x">/</span><span class="s-p">${pv}</span>`
       : `<span class="s-a">${ev}</span>`;
   }
   function durationCell(c){
@@ -1195,7 +1195,7 @@
     const {rangeStart,rangeEnd,totalDays,ganttW,xOf,centerOf,barW,xToday,dayPx} = buildRange();
     const eCols=effCols();
     const lh = buildLeftHeader();
-    const {holMap:holMapHdr, ym, dc, bg, weX, dcBounds:_dcBounds} = buildDateHeader();
+    const {ym, dc, bg, weX, dcBounds:_dcBounds} = buildDateHeader();
     dcBounds=_dcBounds;   // 日付列の十字ハイライト用（mousemoveハンドラは render() 外の別スコープにあるため橋渡し）
     const {lrows, grows, progRows, pts, rowsH} = buildRowBodies();
     pts.push([xToday,rowsH]);
