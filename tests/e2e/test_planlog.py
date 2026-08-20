@@ -18,8 +18,14 @@ L2["_planLog"] = [mklog("2026-06-16", "2026-06-22", "2026-06-16", "2026-06-25")]
 L3 = leaf("1.3", "リスケなし", ps="2026-06-22", pe="2026-06-25")
 L4 = leaf("1.4", "壊れ混在", ps="2026-06-16", pe="2026-06-20")
 L4["_planLog"] = ["str", 123, None, {}, mklog("2026-06-10", "2026-06-14", "2026-06-16", "2026-06-20")]
+# 長い理由テキスト（#14）：吹き出しが枠内でwrapされ、はみ出さないことを検証する用
+LONG_REASON = ("上流モジュールの仕様変更に伴う再設計と、依存する外部APIの応答フォーマット変更への追従、"
+               "さらに関連ドキュメントの全面改訂が重なったため、当初予定を大幅に後ろ倒しする必要が生じた。"
+               "https://example.com/very/long/url/that/should/wrap/without/overflowing/the/popup/box")
+L5 = leaf("1.5", "長い理由", ps="2026-06-17", pe="2026-06-21")
+L5["_planLog"] = [mklog("2026-06-01", "2026-06-05", "2026-06-17", "2026-06-21", LONG_REASON)]
 DATA = {"projects": [{"name": "P", "milestones": [], "tasks": [
-    {"id": "1", "name": "工程", "children": [L1, L2, L3, L4]}]}]}
+    {"id": "1", "name": "工程", "children": [L1, L2, L3, L4, L5]}]}]}
 
 errors = []
 with sync_playwright() as p:
@@ -33,7 +39,7 @@ with sync_playwright() as p:
 
     # ===== 表示 =====
     bdgs = pg.eval_on_selector_all("#leftRows .rsbdg", "e=>e.map(x=>x.textContent)")
-    check(bdgs == ["↷2", "↷1", "↷1"], f"↷N=有効エントリ数（壊れ要素は数えない・なし行は無印） -> {bdgs}")
+    check(bdgs == ["↷2", "↷1", "↷1", "↷1"], f"↷N=有効エントリ数（壊れ要素は数えない・なし行は無印） -> {bdgs}")
     # トレイル：L1=直近が両方変更→上下2本 / L2=終了のみ→上1本 / L3=なし / L4=直近fromが有効日付→出る
     trails = pg.evaluate("""()=>[...document.querySelectorAll('#grows .grow')].map(r=>({
         bot:r.querySelectorAll('.rs-seg:not(.top)').length, top:r.querySelectorAll('.rs-seg.top').length}))""")
@@ -41,7 +47,7 @@ with sync_playwright() as p:
     check(trails[2] == {"bot": 1, "top": 1}, f"両方リスケ=上下1本ずつ -> {trails[2]}")
     check(trails[3] == {"bot": 0, "top": 1}, f"終了のみ=上だけ1本 -> {trails[3]}")
     check(trails[4] == {"bot": 0, "top": 0}, f"リスケなし=トレイルなし -> {trails[4]}")
-    check(len(tr) == 3, f"トレイルは直近1修正ぶんだけ（行数3） -> {len(tr)}")
+    check(len(tr) == 4, f"トレイルは直近1修正ぶんだけ（L1両方・L2終了・L4・L5＝行数4） -> {len(tr)}")
     # 吹き出し：バッジクリックで開く・履歴と当初比・XSSがエスケープされている
     pg.click('#leftRows .rsbdg >> nth=0'); pg.wait_for_timeout(100)
     check(pg.is_visible("#rsPop"), "バッジクリックで吹き出しが開く")
@@ -57,6 +63,14 @@ with sync_playwright() as p:
     check(pg.is_visible("#rsPop"), "リスケ済みバーのクリックでも開く")
     pg.click("#leftHead", position={"x": 5, "y": 5}); pg.wait_for_timeout(100)
     check(not pg.is_visible("#rsPop"), "外側クリックで閉じる")
+    # 長い理由（#14）：吹き出しが枠内でwrapされ、はみ出さない
+    pg.click('#leftRows .rsbdg >> nth=3'); pg.wait_for_timeout(100)
+    check(pg.is_visible("#rsPop"), "長い理由の行でも吹き出しが開く")
+    check(pg.eval_on_selector("#rsPop", "e=>e.scrollWidth<=e.clientWidth"),
+          "長い理由が枠内でwrapされ横にはみ出さない（scrollWidth<=clientWidth）")
+    check(pg.eval_on_selector("#rsPop", "e=>e.offsetWidth<=560"),
+          "吹き出し幅がmax-width:560pxを超えない")
+    pg.click('#leftRows .rsbdg >> nth=3'); pg.wait_for_timeout(100)
 
     # ===== 記録（編集モード） =====
     pg.click("#editBtn"); pg.wait_for_timeout(300)
