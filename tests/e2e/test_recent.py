@@ -86,11 +86,46 @@ with sync_playwright() as p:
     check(not dialogs and len(items(pg)) == 5, "フォールバックのキャンセルは無言・履歴は不変")
     pg.reload(); pg.wait_for_timeout(400)
 
-    # 消失したファイル → 履歴から削除して通知
-    pg.evaluate("async()=>{const d=await navigator.storage.getDirectory();await d.removeEntry('f2.json');}")
-    dialogs.clear(); open_recent(pg, items(pg).index("f2.json"))
-    check("f2.json" not in items(pg) and any("f2.json" in d for d in dialogs), f"消失ファイルは履歴から削除して通知 -> {dialogs}")
+    # 未保存の編集が書き込めない時は切替を中止（編集を捨てない）
+    open_recent(pg, 0); cur = items(pg)[0]                         # リロード直後は未読込＝まずハンドル付きで開く
+    pg.click("#editBtn"); pg.wait_for_timeout(200)
+    pg.evaluate("()=>{FileSystemFileHandle.prototype.createWritable=async()=>{throw new DOMException('disk full','NotReadableError');};}")
+    pg.fill('input[data-path="0/0"][data-field="assignee"]', "山田")
+    pg.dispatch_event('input[data-path="0/0"][data-field="assignee"]', "change")
+    pg.wait_for_timeout(700)   # デバウンス保存が失敗＝dirty のまま
+    dialogs.clear(); open_recent(pg, 1)
+    check(any("切り替えませんでした" in d for d in dialogs), f"書込失敗のまま切替しようとすると警告 -> {dialogs}")
+    kept = pg.evaluate("""()=>{const i=document.querySelector('input[data-path="0/0"][data-field="assignee"]');
+      return !!i && i.value==='山田' && document.getElementById('editBtn').classList.contains('on');}""")
+    check(kept and items(pg)[0] == cur, "書込失敗時はファイルを切り替えない（編集モード・入力値を保持）")
+    pg.reload(); pg.wait_for_timeout(400)
 
+    # 一覧の変更は直列化：追加の処理中にクリアが割り込んでも削除済みが復活しない／連続追加を取りこぼさない
+    pg.evaluate("""async()=>{const d=await navigator.storage.getDirectory();
+      const slow=FileSystemHandle.prototype.isSameEntry;
+      FileSystemHandle.prototype.isSameEntry=async function(o){await new Promise(r=>setTimeout(r,60));return slow.call(this,o);};
+      const h1=await d.getFileHandle('f1.json');
+      window.showOpenFilePicker=async()=>[h1];}""")
+    pg.click("#openBtn"); pg.wait_for_timeout(30)                 # f1 の追加が isSameEntry 待ちの間に
+    pg.click("#recentSum"); pg.click("#recentList .rc-clear")    # クリアを割り込ませる
+    pg.wait_for_timeout(800)
+    prev = items(pg)
+    check(set(prev) <= {"f1.json"}, f"追加中のクリアは順に適用（クリア前の履歴が復活しない） -> {prev}")
+    pg.evaluate("""async()=>{const d=await navigator.storage.getDirectory();
+      const hs=[await d.getFileHandle('f3.json'),await d.getFileHandle('f4.json')]; let k=0;
+      window.showOpenFilePicker=async()=>[hs[k++]];}""")
+    pg.click("#openBtn"); pg.click("#openBtn"); pg.wait_for_timeout(1000)
+    check(items(pg) == ["f4.json", "f3.json"] + prev, f"連続追加を取りこぼさない -> {items(pg)}")
+    pg.reload(); pg.wait_for_timeout(400)
+    check(items(pg) == ["f4.json", "f3.json"] + prev, f"直列化後の一覧がそのまま永続 -> {items(pg)}")
+
+    # 消失したファイル → 履歴から削除して通知
+    pg.evaluate("async()=>{const d=await navigator.storage.getDirectory();await d.removeEntry('f3.json');}")
+    dialogs.clear(); open_recent(pg, items(pg).index("f3.json"))
+    check("f3.json" not in items(pg) and any("f3.json" in d for d in dialogs), f"消失ファイルは履歴から削除して通知 -> {dialogs}")
+
+    for n in ["f5.json", "f6.json"]:                               # ✕→クリアを確かめるため2件以上にそろえる
+        open_via_picker(pg, n)
     n0 = len(items(pg))
     pg.click("#recentSum"); pg.click('#recentList [data-rcdel="0"]')
     check(len(items(pg)) == n0 - 1, "✕で個別削除")

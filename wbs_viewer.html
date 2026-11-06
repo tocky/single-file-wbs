@@ -375,6 +375,7 @@
       recentAt:d=>`最終オープン: ${d}`,recentGone:n=>`「${n}」が見つかりません（移動・削除された可能性）。履歴から削除しました。`,
       recentPicker:"このブラウザでは直接開く許可が得られないため、ファイルのあるフォルダでダイアログを開きます。同じファイルを選んでください。",
       recentRetry:"もう一度、最近の一覧からファイルを選んでください（ブラウザのジェスチャー制限）。",
+      switchUnsaved:"未保存の変更を書き込めなかったため、ファイルを切り替えませんでした。保存状態を確認してから再度お試しください。",
       allTipExpand:"ツリーが全部展開されます ※Ctrl+Z でクリック前の状態に戻ります",
       allTipCollapse:"ツリーが全部折りたたまれます ※Ctrl+Z でクリック前の状態に戻ります",
       colHide:"この列を畳む",colShow:"畳んだ列を開く",colResizeTip:"ドラッグで列幅を調整（ダブルクリックで既定幅に戻す）",
@@ -430,6 +431,7 @@
       recentAt:d=>`Last opened: ${d}`,recentGone:n=>`"${n}" was not found (it may have been moved or deleted). Removed from history.`,
       recentPicker:"The browser cannot grant direct access here, so the dialog opens in the file's folder. Please select the same file.",
       recentRetry:"Please pick the file from the Recent list once more (browser gesture restriction).",
+      switchUnsaved:"Unsaved changes could not be written, so the file was not switched. Check the save status and try again.",
       allTipExpand:"Expands the whole tree (Ctrl+Z restores the view before the click)",
       allTipCollapse:"Collapses the whole tree (Ctrl+Z restores the view before the click)",
       colHide:"Collapse this column",colShow:"Expand collapsed column",colResizeTip:"Drag to resize column (double-click to reset)",
@@ -1529,19 +1531,31 @@
   // ===== 最近開いたファイル(#20)：ハンドルを IndexedDB に直近 RECENT_MAX 件（新しい順）。IDB不可・保存不可のハンドルは黙って無視 =====
   const RECENT_MAX=5;
   let recentList=[];
-  const recentReady=idbGet("recent").then(a=>{
+  // 一覧の変更（初期読込・追加・削除・クリア）は単一キューで直列化＝読み→加工→保存の途中で別操作が割り込まず、追加の取りこぼしや削除済みの復活を防ぐ
+  let recentChain=Promise.resolve();
+  function recentOp(fn){
+    recentChain=recentChain.then(async()=>{
+      if(await fn()===false)return;                                          // false＝変更なし（保存しない）
+      renderRecent();
+      try{await idbSet("recent",recentList);}catch(_){}                      // IDB不可・保存不可のハンドルは黙って無視
+    }).catch(()=>{});
+    return recentChain;
+  }
+  recentChain=idbGet("recent").then(a=>{
     if(Array.isArray(a))recentList=a.filter(r=>r&&r.handle&&typeof r.handle.getFile==="function").slice(0,RECENT_MAX);
   }).catch(()=>{}).then(()=>renderRecent());
-  let recentChain=Promise.resolve();
-  const saveRecent=()=>{const snap=recentList.slice();recentChain=recentChain.then(()=>idbSet("recent",snap)).catch(()=>{});return recentChain;};  // 直列化＝古い一覧が後勝ちしない
-  async function addRecent(h){
-    await recentReady;
+  const addRecent=h=>recentOp(async()=>{
     const rest=[];
     for(const r of recentList){let same=r.handle===h;try{same=same||await r.handle.isSameEntry(h);}catch(_){} if(!same)rest.push(r);}  // 同じファイルは重複させず先頭へ移動
     recentList=[{name:h.name,at:Date.now(),handle:h},...rest].slice(0,RECENT_MAX);
-    renderRecent(); saveRecent();
+  });
+  const removeRecent=r=>recentOp(()=>{const i=recentList.indexOf(r);if(i<0)return false;recentList.splice(i,1);});  // 添字でなく項目で指定＝キュー待ちの間に並びが変わっても別項目を消さない
+  const clearRecent=()=>recentOp(()=>{recentList=[];});
+  async function flushBeforeSwitch(){                                        // 切替前に未保存を書き出す。writeNowは失敗を投げずdirtyを戻すだけなので、残っていたら切替を中止（編集を捨てない）
+    await flushSaves();
+    if(dirty){alert(t("switchUnsaved"));return false;}
+    return true;
   }
-  function removeRecent(i){if(i<0||i>=recentList.length)return;recentList.splice(i,1);renderRecent();saveRecent();}
   function renderRecent(){
     const dd=$("recentDd"); if(!dd)return;
     const has=recentList.length>0, pad=n=>String(n).padStart(2,"0");
@@ -1561,9 +1575,9 @@
     try{ok=await h.queryPermission({mode:"read"})==="granted";}catch(_){}
     if(!ok){try{ok=await h.requestPermission({mode:"read"})==="granted";}catch(_){}}
     if(ok){
-      try{await flushSaves();await loadFromHandle(h,true);}
+      try{if(await flushBeforeSwitch())await loadFromHandle(h,true);}
       catch(e){
-        if(e&&e.name==="NotFoundError"){removeRecent(recentList.indexOf(r));alert(t("recentGone")(r.name));}
+        if(e&&e.name==="NotFoundError"){removeRecent(r);alert(t("recentGone")(r.name));}
         else alert(t("reloadErr")+(e&&e.message));
       }
       return;
@@ -1573,7 +1587,7 @@
     notice(t("recentPicker"));
     try{
       const[nh]=await window.showOpenFilePicker({startIn:h,types:[{description:"JSON",accept:{"application/json":[".json"]}}]});
-      notice(""); await flushSaves(); await loadFromHandle(nh,true);
+      notice(""); if(await flushBeforeSwitch())await loadFromHandle(nh,true);
     }catch(e){
       if(e&&e.name==="AbortError"){notice("");return;}
       if(/user gesture/i.test(e&&e.message||"")){notice(t("recentRetry"));return;}
@@ -1583,8 +1597,8 @@
   $("recentList").addEventListener("click",e=>{
     const o=e.target.closest("[data-rc]"), d=e.target.closest("[data-rcdel]");
     if(o)openRecent(+o.getAttribute("data-rc"));
-    else if(d)removeRecent(+d.getAttribute("data-rcdel"));
-    else if(e.target.closest(".rc-clear")){recentList=[];renderRecent();saveRecent();}
+    else if(d)removeRecent(recentList[+d.getAttribute("data-rcdel")]);
+    else if(e.target.closest(".rc-clear"))clearRecent();
   });
   document.addEventListener("click",e=>{const dd=$("recentDd");if(dd&&dd.open&&!e.composedPath().includes(dd))dd.open=false;});  // 外側クリックで閉じる（✕で行が再描画され target が切り離されても内側扱い＝composedPath）
   async function openPicker(){
