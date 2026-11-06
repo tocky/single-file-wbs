@@ -32,6 +32,17 @@
   #openBtn,#refreshBtn,#editBtn{height:40px} /* 操作3ボタンは同一高（2行の「開く」基準）。指標ブロックの高さに引きずられない */
   #openBtn .sub{font-size:9px;opacity:.8}
   #openBtn.over{background:#eef4ff!important;border:1px dashed var(--accent)!important;color:var(--accent)!important} /* ドラッグ中だけ「落とせる」点線合図 */
+  .recent-dd{position:relative;display:inline-block}
+  .recent-dd>summary{list-style:none;cursor:pointer;font:inherit;padding:5px 10px;border:1px solid var(--btn-border);border-radius:6px;background:#fff;color:var(--muted)}
+  .recent-dd>summary::-webkit-details-marker{display:none}
+  .recent-dd[open]>summary{background:#eef4ff;border-color:var(--accent);color:var(--accent)}
+  .recent-list{position:absolute;top:100%;left:0;z-index:25;margin-top:3px;background:#fff;border:1px solid var(--btn-border);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:5px;min-width:190px;max-width:320px}
+  .recent-row{display:flex;align-items:center;gap:6px}
+  .recent-row button{font:inherit;border:0!important;background:transparent!important;cursor:pointer}
+  .recent-row [data-recent-open]{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+  .recent-row [data-recent-remove]{padding:2px 6px!important;color:var(--muted)}
+  .recent-empty{padding:5px 7px;color:var(--muted);white-space:nowrap}
+  .recent-clear{width:100%;margin-top:4px;padding:4px 7px!important;border-top:1px solid var(--line)!important;border-radius:0!important;text-align:left;color:var(--muted)}
   #topbar #langBtn{border-color:transparent;background:transparent;color:var(--muted)} /* 表示設定＝データ操作より弱く・右端 */
   #topbar #langBtn:hover{border-color:var(--btn-border);background:#fff}
   #filterBar{display:none;align-items:center;gap:10px;padding:5px 12px;border-bottom:1px solid var(--line);background:#f4f6f9} /* フィルタバー(#91)＝左の情報表の真上・表示専用の絞り込み */
@@ -295,6 +306,7 @@
     <span class="title" id="brandTitle"><svg class="logo" width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.6" fill="#1e2f63"/><rect x="4.2" y="4.8" width="7.5" height="2.7" rx="1" fill="#7da4f7"/><rect x="6" y="8.6" width="9.3" height="2.7" rx="1" fill="#cdd9f5"/><rect x="4.8" y="12.4" width="5.8" height="2.7" rx="1" fill="#7da4f7"/><polyline points="12.8,3.2 9.8,9.6 13.8,11.2 10.8,16.8" stroke="#e11d48" stroke-width="1.8" fill="none"/></svg><span style="display:flex;flex-direction:column"><span class="brand">WBS<span class="brand-x"> Viewer</span></span><span class="ver">v1.6.0</span></span></span>
     <span class="tdiv"></span>
     <button id="openBtn" class="primary">ファイルを開く<span class="sub">（ドラッグ&amp;ドロップ）</span></button>
+    <details id="recentFiles" class="recent-dd"><summary id="recentSummary">最近 ▼</summary><div id="recentList" class="recent-list"></div></details>
     <button id="refreshBtn">更新</button>
     <button id="editBtn" title="インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します">編集</button>
     <input id="fallbackInput" type="file" accept=".json,application/json" hidden>
@@ -344,7 +356,7 @@
   // ===== i18n（UI文言の単一ソース。データ(wbs.json)は翻訳しない） =====
   const I18N={
     ja:{
-      open:"ファイルを開く",openSub:"（ドラッグ&ドロップ）",reload:"更新",edit:"編集",langBtn:"EN",
+      open:"ファイルを開く",openSub:"（ドラッグ&ドロップ）",recent:"最近 ▼",recentEmpty:"履歴はありません",recentClear:"履歴をクリア",recentRemove:"履歴から削除",recentMissing:name=>`最近開いたファイル「${name}」が見つかりません。履歴から削除しました。`,recentOpenFail:"最近のファイルを開けませんでした: ",reload:"更新",edit:"編集",langBtn:"EN",
       allTipExpand:"ツリーが全部展開されます ※Ctrl+Z でクリック前の状態に戻ります",
       allTipCollapse:"ツリーが全部折りたたまれます ※Ctrl+Z でクリック前の状態に戻ります",
       colHide:"この列を畳む",colShow:"畳んだ列を開く",colResizeTip:"ドラッグで列幅を調整（ダブルクリックで既定幅に戻す）",
@@ -395,7 +407,7 @@
       dropFail:"ドロップされたファイルを読み取れませんでした。「ファイルを開く」をお試しください。",
     },
     en:{
-      open:"Open file",openSub:"(drag & drop)",reload:"Reload",edit:"Edit",langBtn:"日本語",
+      open:"Open file",openSub:"(drag & drop)",recent:"Recent ▼",recentEmpty:"No recent files",recentClear:"Clear history",recentRemove:"Remove from history",recentMissing:name=>`Recent file "${name}" was not found and has been removed.`,recentOpenFail:"Could not open recent file: ",reload:"Reload",edit:"Edit",langBtn:"日本語",
       allTipExpand:"Expands the whole tree (Ctrl+Z restores the view before the click)",
       allTipCollapse:"Collapses the whole tree (Ctrl+Z restores the view before the click)",
       colHide:"Collapse this column",colShow:"Expand collapsed column",colResizeTip:"Drag to resize column (double-click to reset)",
@@ -449,6 +461,7 @@
   let lang="ja";if(lsGet("wbsLang")==="en")lang="en";   // 既定は日本語・明示切替のみ記憶
   const t=k=>I18N[lang][k];
   let fileHandle=null, lock=false, lastData=null, pendingCenter=true;
+  let recentEntries=[];
   let editMode=false, curProjects=null, refreshTimer=null;                 // 編集モード関連
   let detailPath=null, detailNodeId=null, detailWritable=false, detailEditing=false;  // タスク詳細ダイアログ（editModeとは独立の第2編集経路）
   let structPreds=new Map(), structSuccs=new Map(), structSelId=null;  // 構造タブ：クリックで依存の連鎖をハイライト（#66・矢印描画の軽量代替）
@@ -1485,15 +1498,124 @@
     if(dirty){flushSaves();e.preventDefault();}                              // 書込完了前の離脱に警告（#15）
   });
 
-  async function loadFromHandle(h,isNew){
+  async function loadFromHandle(h,isNew,recordRecent=false){
     const f=await h.getFile(), txt=await f.text();
     let data; try{data=JSON.parse(txt);}
     catch(e){alert(t("jsonFail")(t("fileLabel")(f.name,f.size),e.message));return;}  // 失敗時はハンドルを差し替えない（#1：別ファイル上書き破壊の防止）
     fileHandle=h; fileMtime=f.lastModified; curFileName=f.name; applyData(data,isNew);
+    if(recordRecent)await rememberRecent(h,f.name);
   }
+  const RECENT_DB="single-file-wbs", RECENT_STORE="history", RECENT_KEY="recent";
+  function openRecentDb(){
+    return new Promise(resolve=>{
+      try{
+        if(!window.indexedDB)return resolve(null);
+        const req=window.indexedDB.open(RECENT_DB,1);
+        req.onupgradeneeded=()=>{try{req.result.createObjectStore(RECENT_STORE);}catch(_){}};
+        req.onsuccess=()=>{try{req.result.onversionchange=()=>req.result.close();resolve(req.result);}catch(_){resolve(null);}};
+        req.onerror=req.onblocked=()=>resolve(null);
+      }catch(_){resolve(null);}
+    });
+  }
+  async function readRecent(){
+    const db=await openRecentDb();if(!db)return null;
+    return new Promise(resolve=>{
+      try{
+        const tx=db.transaction(RECENT_STORE,"readonly"),req=tx.objectStore(RECENT_STORE).get(RECENT_KEY);
+        req.onsuccess=()=>resolve(Array.isArray(req.result)?req.result:[]);
+        req.onerror=tx.onabort=()=>resolve(null);
+      }catch(_){resolve(null);}
+    });
+  }
+  async function writeRecent(entries){
+    const db=await openRecentDb();if(!db)return false;
+    return new Promise(resolve=>{
+      try{
+        const tx=db.transaction(RECENT_STORE,"readwrite");
+        tx.objectStore(RECENT_STORE).put(entries,RECENT_KEY);
+        tx.oncomplete=()=>resolve(true);tx.onerror=tx.onabort=()=>resolve(false);
+      }catch(_){resolve(false);}
+    });
+  }
+  function renderRecent(){
+    const list=$("recentList");list.replaceChildren();
+    $("recentSummary").textContent=t("recent");
+    if(!recentEntries.length){
+      const empty=document.createElement("div");empty.className="recent-empty";empty.textContent=t("recentEmpty");list.append(empty);return;
+    }
+    recentEntries.forEach((entry,index)=>{
+      const row=document.createElement("div");row.className="recent-row";
+      const open=document.createElement("button");open.type="button";open.dataset.recentOpen=index;open.title=entry.name;open.textContent=entry.name;
+      const remove=document.createElement("button");remove.type="button";remove.dataset.recentRemove=index;remove.title=t("recentRemove");remove.setAttribute("aria-label",t("recentRemove"));remove.textContent="✕";
+      row.append(open,remove);list.append(row);
+    });
+    const clear=document.createElement("button");clear.type="button";clear.className="recent-clear";clear.dataset.recentClear="";clear.textContent=t("recentClear");list.append(clear);
+  }
+  async function refreshRecent(){
+    const entries=await readRecent();
+    if(entries!==null)recentEntries=entries.filter(e=>e&&e.handle&&typeof e.name==="string").slice(0,5);
+    renderRecent();
+  }
+  async function rememberRecent(handle,name){
+    const entries=await readRecent();if(entries===null)return;
+    const kept=[];
+    for(const entry of entries){
+      let same=false;
+      try{same=!!(handle.isSameEntry&&entry.handle&&await handle.isSameEntry(entry.handle));}catch(_){}
+      if(!same)kept.push(entry);
+    }
+    if(await writeRecent([{handle,name},...kept].slice(0,5)))await refreshRecent();
+  }
+  async function removeRecent(index){
+    const entries=await readRecent();if(entries===null)return;
+    entries.splice(index,1);
+    if(await writeRecent(entries))await refreshRecent();
+  }
+  async function openRecent(index){
+    const entry=recentEntries[index];if(!entry)return;
+    $("recentFiles").open=false;
+    const missing=async()=>{await removeRecent(index);alert(t("recentMissing")(entry.name));};
+    try{
+      let permission=await entry.handle.queryPermission({mode:"read"});
+      if(permission!=="granted")permission=await entry.handle.requestPermission({mode:"read"});
+      if(permission==="granted"){
+        try{await loadFromHandle(entry.handle,true,true);}
+        catch(e){if(e&&e.name==="NotFoundError")await missing();else alert(t("recentOpenFail")+e.message);}
+        return;
+      }
+    }catch(e){
+      if(e&&e.name==="NotFoundError"){await missing();return;}
+    }
+    if(!window.showOpenFilePicker){alert(t("recentOpenFail"));return;}
+    const options={types:[{description:"JSON",accept:{"application/json":[".json"]}}],startIn:entry.handle};
+    let handle;
+    try{
+      [handle]=await window.showOpenFilePicker(options);
+    }catch(e){
+      if(e&&e.name==="AbortError")return;
+      if(e&&e.name==="TypeError"){
+        try{[handle]=await window.showOpenFilePicker({types:options.types});}
+        catch(retry){if(retry&&retry.name==="AbortError")return;e=retry;}
+      }
+      if(!handle){
+        if(e&&e.name==="NotFoundError")await missing();
+        else alert(t("recentOpenFail")+e.message);
+        return;
+      }
+    }
+    try{await loadFromHandle(handle,true,true);}
+    catch(e){alert(t("recentOpenFail")+e.message);}
+  }
+  $("recentList").addEventListener("click",e=>{
+    const remove=e.target.closest("[data-recent-remove]"),open=e.target.closest("[data-recent-open]");
+    if(remove)removeRecent(Number(remove.dataset.recentRemove));
+    else if(open)openRecent(Number(open.dataset.recentOpen));
+    else if(e.target.closest("[data-recent-clear]"))writeRecent([]).then(ok=>{if(ok)refreshRecent();});
+  });
+  refreshRecent();
   async function openPicker(){
     if(window.showOpenFilePicker){
-      try{const[h]=await window.showOpenFilePicker({types:[{description:"JSON",accept:{"application/json":[".json"]}}]});await loadFromHandle(h,true);}
+      try{const[h]=await window.showOpenFilePicker({types:[{description:"JSON",accept:{"application/json":[".json"]}}]});await loadFromHandle(h,true,true);}
       catch(e){if(e&&e.name!=="AbortError")alert("読み込み失敗: "+e.message);}
     }else $("fallbackInput").click();
   }
@@ -1625,7 +1747,7 @@
         const h=await it.getAsFileSystemHandle();
         if(h&&h.kind==="file"){
           const f=await h.getFile();
-          if(f.size>0||!fb||fb.size===0){await loadFromHandle(h,true);return;}  // ハンドル読みが空でフォールバックに中身がある時だけ切替
+          if(f.size>0||!fb||fb.size===0){await loadFromHandle(h,true,true);return;}  // ハンドル読みが空でフォールバックに中身がある時だけ切替
         }
       }catch(_){}
     }
@@ -1833,6 +1955,7 @@
   function applyLang(){
     document.documentElement.lang=lang;
     $("openBtn").innerHTML=`${esc(t("open"))}<span class="sub">${esc(t("openSub"))}</span>`;
+    renderRecent();
     [["refreshBtn","reload"],
      ["editBtn","edit"],["langBtn","langBtn"]].forEach(([id,k])=>{$(id).textContent=t(k);});
     $("editBtn").title=t("editTitle");
