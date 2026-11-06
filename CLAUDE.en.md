@@ -49,6 +49,10 @@ To keep the file from growing forever, **move old completed tasks out of the cur
 ## Opening / reloading
 1. Open `wbs_viewer.html` in Chrome.
 2. Pick `wbs.json` via **Open file** (or **drag & drop** onto that same button).
+   **Recent files (#20)**: the adjacent **Recent ▾** lists the last 5 files (most recent first); click one to reopen it.
+   Handles are stored in the browser's **IndexedDB** (`wbs.json` is untouched; load paths without a handle are not recorded; reopening a listed file only moves it to the top; **Reload** never reorders).
+   If permission is already granted in this session it loads immediately; otherwise (e.g. file:// after a Chrome restart) **a dialog opens in that file's folder**, so pick the same file.
+   A missing file is removed from the history with a notice. `✕` removes one entry, "Clear history" removes all. Without IndexedDB the feature is silently disabled (no crash).
 3. Edit `wbs.json` and save → press **Reload** to re-read and re-render (no re-selection needed / File System Access API).
 4. Collapsing: click a **◆project / L1 / L2 `▼/▶`–name**.
    The **`▼/▶` in the Task column header** expands/collapses everything (▼ = all open → click collapses all; ▶ = something closed → click expands all).

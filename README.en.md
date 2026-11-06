@@ -28,6 +28,7 @@ Humans edit via the GUI; AI edits via raw JSON and [`CLAUDE.md`](CLAUDE.md) — 
 3. Load a bundled data file via **Open file** (or drag & drop onto that same button)
    - **`wbs_sample.json`** — fictional sample, a format reference
    - **`wbs_roadmap.json`** — this tool's own development plan (real data, linked to GitHub issues and maintained by Claude Code)
+   - Files you have opened can be reopened from the adjacent **Recent ▾** (last 5)
 
 For your own WBS, copy `wbs_sample.json` as a template (name the file anything you like). Edit and save, then press **Reload**.
 Updating the tool means overwriting `wbs_viewer.html`; your `wbs.json` data is never touched.

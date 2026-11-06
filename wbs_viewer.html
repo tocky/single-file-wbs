@@ -31,6 +31,20 @@
   #openBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;padding:3px 12px}
   #openBtn,#refreshBtn,#editBtn{height:40px} /* 操作3ボタンは同一高（2行の「開く」基準）。指標ブロックの高さに引きずられない */
   #openBtn .sub{font-size:9px;opacity:.8}
+  #recentDd{position:relative;align-self:center}                                  /* 最近開いたファイル(#20)＝開くボタン横のドロップダウン（担当#93と同じdetails/summary方式） */
+  #recentDd>summary{list-style:none;cursor:pointer;font:inherit;height:40px;box-sizing:border-box;display:flex;align-items:center;padding:3px 8px;border:1px solid var(--btn-border);border-radius:6px;background:#fff;white-space:nowrap}
+  #recentDd>summary::-webkit-details-marker{display:none}
+  #recentDd[open]>summary{background:#eef4ff;border-color:var(--accent);color:var(--accent)}
+  #recentDd.none>summary{color:var(--muted);opacity:.6}                          /* 履歴0件＝薄く（開くと「履歴なし」） */
+  #recentDd .rc-list{position:absolute;top:100%;left:0;z-index:30;margin-top:3px;background:#fff;border:1px solid var(--btn-border);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:4px;min-width:180px;max-width:360px}
+  #recentDd .rc-row{display:flex;align-items:center;gap:2px}
+  #topbar #recentDd .rc-list button{height:auto;padding:3px 6px;border:none;background:transparent;font-size:12px;border-radius:4px}
+  #topbar #recentDd .rc-list .rc-open{flex:1 1 auto;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #topbar #recentDd .rc-list button:hover{background:#eef4ff}
+  #topbar #recentDd .rc-list .rc-del{color:var(--muted);font-size:10px}
+  #recentDd .rc-acts{border-top:1px solid var(--line);margin-top:3px;padding-top:3px;text-align:right}
+  #topbar #recentDd .rc-list .rc-clear{font-size:10px;color:var(--muted)}
+  #recentDd .rc-none{font-size:12px;color:var(--muted);padding:4px 6px}
   #openBtn.over{background:#eef4ff!important;border:1px dashed var(--accent)!important;color:var(--accent)!important} /* ドラッグ中だけ「落とせる」点線合図 */
   #topbar #langBtn{border-color:transparent;background:transparent;color:var(--muted)} /* 表示設定＝データ操作より弱く・右端 */
   #topbar #langBtn:hover{border-color:var(--btn-border);background:#fff}
@@ -295,6 +309,7 @@
     <span class="title" id="brandTitle"><svg class="logo" width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.6" fill="#1e2f63"/><rect x="4.2" y="4.8" width="7.5" height="2.7" rx="1" fill="#7da4f7"/><rect x="6" y="8.6" width="9.3" height="2.7" rx="1" fill="#cdd9f5"/><rect x="4.8" y="12.4" width="5.8" height="2.7" rx="1" fill="#7da4f7"/><polyline points="12.8,3.2 9.8,9.6 13.8,11.2 10.8,16.8" stroke="#e11d48" stroke-width="1.8" fill="none"/></svg><span style="display:flex;flex-direction:column"><span class="brand">WBS<span class="brand-x"> Viewer</span></span><span class="ver">v1.6.0</span></span></span>
     <span class="tdiv"></span>
     <button id="openBtn" class="primary">ファイルを開く<span class="sub">（ドラッグ&amp;ドロップ）</span></button>
+    <details id="recentDd" class="none"><summary id="recentSum">最近 ▾</summary><div class="rc-list" id="recentList"></div></details>
     <button id="refreshBtn">更新</button>
     <button id="editBtn" title="インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します">編集</button>
     <input id="fallbackInput" type="file" accept=".json,application/json" hidden>
@@ -316,6 +331,17 @@
   const $=id=>document.getElementById(id);  // getElementById の短縮（50箇所→$()で統一・querySelector はそのまま）
   const lsGet=k=>{try{return localStorage.getItem(k);}catch(_){return null;}};  // localStorage 読み出し（try/catch同型を一本化）
   const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){}};               // localStorage 書き込み
+  // IndexedDB の1キー読み書き（FileSystemFileHandle は localStorage に入らないため・#20）。不可/失敗は reject＝呼び側で黙って無効化
+  function idbKv(mode,fn){return new Promise((res,rej)=>{
+    let op;try{op=indexedDB.open("wbsViewer",1);}catch(e){rej(e);return;}
+    op.onupgradeneeded=()=>op.result.createObjectStore("kv");
+    op.onerror=()=>rej(op.error);
+    op.onsuccess=()=>{const db=op.result;
+      try{const tx=db.transaction("kv",mode),r=fn(tx.objectStore("kv"));
+        tx.oncomplete=()=>{db.close();res(r.result);};tx.onerror=tx.onabort=()=>{db.close();rej(tx.error);};}
+      catch(e){db.close();rej(e);}};});}
+  const idbGet=k=>idbKv("readonly",st=>st.get(k));
+  const idbSet=(k,v)=>idbKv("readwrite",st=>st.put(v,k));
   const DAY_W=22, ROW_H=30, DAY_MS=86400000;
   const WEEK_COL_W=70;   // 週表示：週1列の幅目安(px)。1日あたり=WEEK_COL_W/7≈10pxに圧縮（日精度は保ったまま軸をズームアウト）
   const MONTH_DAY_PX=2;  // 月表示：1日あたりpx。月の日数(28〜31)×これ＝月セル幅（丸め込みなし・長期プロジェクトの俯瞰用にさらに圧縮）
@@ -345,6 +371,10 @@
   const I18N={
     ja:{
       open:"ファイルを開く",openSub:"（ドラッグ&ドロップ）",reload:"更新",edit:"編集",langBtn:"EN",
+      recent:"最近 ▾",recentTip:"最近開いたファイル（直近5件）から開く",recentEmpty:"履歴なし",recentClear:"履歴をクリア",recentDel:"履歴から削除",
+      recentAt:d=>`最終オープン: ${d}`,recentGone:n=>`「${n}」が見つかりません（移動・削除された可能性）。履歴から削除しました。`,
+      recentPicker:"このブラウザでは直接開く許可が得られないため、ファイルのあるフォルダでダイアログを開きます。同じファイルを選んでください。",
+      recentRetry:"もう一度、最近の一覧からファイルを選んでください（ブラウザのジェスチャー制限）。",
       allTipExpand:"ツリーが全部展開されます ※Ctrl+Z でクリック前の状態に戻ります",
       allTipCollapse:"ツリーが全部折りたたまれます ※Ctrl+Z でクリック前の状態に戻ります",
       colHide:"この列を畳む",colShow:"畳んだ列を開く",colResizeTip:"ドラッグで列幅を調整（ダブルクリックで既定幅に戻す）",
@@ -396,6 +426,10 @@
     },
     en:{
       open:"Open file",openSub:"(drag & drop)",reload:"Reload",edit:"Edit",langBtn:"日本語",
+      recent:"Recent ▾",recentTip:"Open a recently opened file (last 5)",recentEmpty:"No history",recentClear:"Clear history",recentDel:"Remove from history",
+      recentAt:d=>`Last opened: ${d}`,recentGone:n=>`"${n}" was not found (it may have been moved or deleted). Removed from history.`,
+      recentPicker:"The browser cannot grant direct access here, so the dialog opens in the file's folder. Please select the same file.",
+      recentRetry:"Please pick the file from the Recent list once more (browser gesture restriction).",
       allTipExpand:"Expands the whole tree (Ctrl+Z restores the view before the click)",
       allTipCollapse:"Collapses the whole tree (Ctrl+Z restores the view before the click)",
       colHide:"Collapse this column",colShow:"Expand collapsed column",colResizeTip:"Drag to resize column (double-click to reset)",
@@ -1490,7 +1524,69 @@
     let data; try{data=JSON.parse(txt);}
     catch(e){alert(t("jsonFail")(t("fileLabel")(f.name,f.size),e.message));return;}  // 失敗時はハンドルを差し替えない（#1：別ファイル上書き破壊の防止）
     fileHandle=h; fileMtime=f.lastModified; curFileName=f.name; applyData(data,isNew);
+    if(isNew)addRecent(h);                                                   // 新規読込のみ履歴の先頭へ（「更新」では並び順を変えない・#20）
   }
+  // ===== 最近開いたファイル(#20)：ハンドルを IndexedDB に直近 RECENT_MAX 件（新しい順）。IDB不可・保存不可のハンドルは黙って無視 =====
+  const RECENT_MAX=5;
+  let recentList=[];
+  const recentReady=idbGet("recent").then(a=>{
+    if(Array.isArray(a))recentList=a.filter(r=>r&&r.handle&&typeof r.handle.getFile==="function").slice(0,RECENT_MAX);
+  }).catch(()=>{}).then(()=>renderRecent());
+  let recentChain=Promise.resolve();
+  const saveRecent=()=>{const snap=recentList.slice();recentChain=recentChain.then(()=>idbSet("recent",snap)).catch(()=>{});return recentChain;};  // 直列化＝古い一覧が後勝ちしない
+  async function addRecent(h){
+    await recentReady;
+    const rest=[];
+    for(const r of recentList){let same=r.handle===h;try{same=same||await r.handle.isSameEntry(h);}catch(_){} if(!same)rest.push(r);}  // 同じファイルは重複させず先頭へ移動
+    recentList=[{name:h.name,at:Date.now(),handle:h},...rest].slice(0,RECENT_MAX);
+    renderRecent(); saveRecent();
+  }
+  function removeRecent(i){if(i<0||i>=recentList.length)return;recentList.splice(i,1);renderRecent();saveRecent();}
+  function renderRecent(){
+    const dd=$("recentDd"); if(!dd)return;
+    const has=recentList.length>0, pad=n=>String(n).padStart(2,"0");
+    const at=ms=>{const d=new Date(ms);return isNaN(d)?"":`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+    dd.classList.toggle("none",!has);
+    $("recentSum").textContent=t("recent"); $("recentSum").title=t("recentTip");
+    $("recentList").innerHTML=has
+      ?recentList.map((r,i)=>`<div class="rc-row"><button type="button" class="rc-open" data-rc="${i}" title="${esc(t("recentAt")(at(r.at)))}">${esc(r.name||"?")}</button>`
+        +`<button type="button" class="rc-del" data-rcdel="${i}" title="${esc(t("recentDel"))}">✕</button></div>`).join("")
+        +`<div class="rc-acts"><button type="button" class="rc-clear">${esc(t("recentClear"))}</button></div>`
+      :`<div class="rc-none">${esc(t("recentEmpty"))}</div>`;
+  }
+  async function openRecent(i){
+    const r=recentList[i]; if(!r)return;
+    const h=r.handle; $("recentDd").open=false;
+    let ok=false;                                                            // 読取許可：同一セッションで許可済みなら即読込／未許可ならプロンプト（file://は例外になり得る）
+    try{ok=await h.queryPermission({mode:"read"})==="granted";}catch(_){}
+    if(!ok){try{ok=await h.requestPermission({mode:"read"})==="granted";}catch(_){}}
+    if(ok){
+      try{await flushSaves();await loadFromHandle(h,true);}
+      catch(e){
+        if(e&&e.name==="NotFoundError"){removeRecent(recentList.indexOf(r));alert(t("recentGone")(r.name));}
+        else alert(t("reloadErr")+(e&&e.message));
+      }
+      return;
+    }
+    // 許可が得られない＝そのファイルのフォルダを起点にピッカー（選択自体が許可）。ジェスチャー温存のため alert は挟まず案内はページ内バー（#19と同方針）
+    if(!window.showOpenFilePicker){openPicker();return;}
+    notice(t("recentPicker"));
+    try{
+      const[nh]=await window.showOpenFilePicker({startIn:h,types:[{description:"JSON",accept:{"application/json":[".json"]}}]});
+      notice(""); await flushSaves(); await loadFromHandle(nh,true);
+    }catch(e){
+      if(e&&e.name==="AbortError"){notice("");return;}
+      if(/user gesture/i.test(e&&e.message||"")){notice(t("recentRetry"));return;}
+      notice(""); alert(t("reloadErr")+(e&&e.message));
+    }
+  }
+  $("recentList").addEventListener("click",e=>{
+    const o=e.target.closest("[data-rc]"), d=e.target.closest("[data-rcdel]");
+    if(o)openRecent(+o.getAttribute("data-rc"));
+    else if(d)removeRecent(+d.getAttribute("data-rcdel"));
+    else if(e.target.closest(".rc-clear")){recentList=[];renderRecent();saveRecent();}
+  });
+  document.addEventListener("click",e=>{const dd=$("recentDd");if(dd&&dd.open&&!e.composedPath().includes(dd))dd.open=false;});  // 外側クリックで閉じる（✕で行が再描画され target が切り離されても内側扱い＝composedPath）
   async function openPicker(){
     if(window.showOpenFilePicker){
       try{const[h]=await window.showOpenFilePicker({types:[{description:"JSON",accept:{"application/json":[".json"]}}]});await loadFromHandle(h,true);}
@@ -1836,6 +1932,7 @@
     [["refreshBtn","reload"],
      ["editBtn","edit"],["langBtn","langBtn"]].forEach(([id,k])=>{$(id).textContent=t(k);});
     $("editBtn").title=t("editTitle");
+    renderRecent();
     $("empty").innerHTML=t("empty");
     if(!lastData)$("stat").textContent=t("notLoaded");
     document.querySelector("#filterBar .fbar-ttl").textContent=t("fBar");
