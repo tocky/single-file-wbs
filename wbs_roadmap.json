@@ -1489,7 +1489,7 @@
               },
               "actual": {
                 "start": "2026-11-06",
-                "end": null
+                "end": "2026-11-06"
               },
               "note": "#20 IndexedDBにFileSystemFileHandleを直近5件保存。開くボタン横の「最近▼」ドロップダウンから再オープン(読み取り許可→不可ならstartInピッカー)。I18N ja/en"
             },
@@ -1505,7 +1505,7 @@
               },
               "actual": {
                 "start": "2026-11-06",
-                "end": null
+                "end": "2026-11-06"
               },
               "note": "#20 tests/e2e/test_recent.py (履歴5件・重複・再オープン・フォールバック・削除/クリア・永続)"
             },
@@ -1521,7 +1521,7 @@
               },
               "actual": {
                 "start": "2026-11-06",
-                "end": null
+                "end": "2026-11-06"
               },
               "note": "#20 CLAUDE.md/CLAUDE.en.md/README の開き方節"
             }
