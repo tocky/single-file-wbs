@@ -52,6 +52,7 @@ python tests/e2e/run_all.py
 | test_save_retry.py | 保存リトライ（同期/AV 競合の InvalidStateError → 1回だけ自動再保存） |
 | test_permissions.py | file:// 権限フロー（保存ピッカー/ジェスチャー再試行/選択時切り詰めへの即書込/案内バー） |
 | test_load.py | D&D・読込の堅牢性（空ファイルのエラー表示・ハンドル空読みフォールバック） |
+| test_recent.py | 最近開いたファイル（直近5件・重複は先頭移動・再オープン・許可不可時の startIn ピッカー・消失・削除/クリア・IndexedDB 永続/不可）※本物のハンドルが要るためローカル HTTP＋OPFS で実行 |
 | test_ui.py | 保存状態表示の遷移・クリックターゲット寸法 |
 | test_security.py | XSS/属性インジェクション（`esc()`・色は `isColor()` で `#hex` のみ許可） |
 

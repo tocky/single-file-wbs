@@ -1471,6 +1471,61 @@
               "note": "#16：https://github.com/tocky/single-file-wbs/issues/16 列表示プリセット（ガント優先/標準/フル）をワンクリック切替。COL_CGベースでcolCollapsedを決定論的に再構築し、手動の+/−微調整を維持。選択モードと折りたたみ状態をlocalStorage記憶、I18N(ja/en)・CLAUDE.md/en更新を同コミットで実施"
             }
           ]
+        },
+        {
+          "id": "8",
+          "name": "v1.7.0: 最近開いたファイル",
+          "note": "#20：https://github.com/tocky/single-file-wbs/issues/20",
+          "children": [
+            {
+              "id": "8.1",
+              "name": "最近開いたファイル実装",
+              "qty": 1,
+              "hours": 4,
+              "assignee": "tocky",
+              "plan": {
+                "start": "2026-11-06",
+                "end": "2026-11-06"
+              },
+              "actual": {
+                "start": "2026-11-06",
+                "end": null
+              },
+              "note": "#20 IndexedDBにFileSystemFileHandleを直近5件保存。開くボタン横の「最近▼」ドロップダウンから再オープン(読み取り許可→不可ならstartInピッカー)。I18N ja/en"
+            },
+            {
+              "id": "8.2",
+              "name": "e2eテスト追加",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "tocky",
+              "plan": {
+                "start": "2026-11-06",
+                "end": "2026-11-06"
+              },
+              "actual": {
+                "start": "2026-11-06",
+                "end": null
+              },
+              "note": "#20 tests/e2e/test_recent.py (履歴5件・重複・再オープン・フォールバック・削除/クリア・永続)"
+            },
+            {
+              "id": "8.3",
+              "name": "ドキュメント更新",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "tocky",
+              "plan": {
+                "start": "2026-11-06",
+                "end": "2026-11-06"
+              },
+              "actual": {
+                "start": "2026-11-06",
+                "end": null
+              },
+              "note": "#20 CLAUDE.md/CLAUDE.en.md/README の開き方節"
+            }
+          ]
         }
       ]
     }
